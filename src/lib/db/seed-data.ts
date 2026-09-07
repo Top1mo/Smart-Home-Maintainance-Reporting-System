@@ -2770,6 +2770,94 @@ export const SEED_TICKETS = [
   },
 ];
 
+export function seedTaxonomyOnly(db: DatabaseSync): void {
+  const existing = db.prepare('SELECT COUNT(*) as count FROM trades').get() as { count: number } | undefined;
+  if (existing && existing.count > 0) {
+    return;
+  }
+
+  db.exec('BEGIN IMMEDIATE;');
+  try {
+    // 1. Clean default property
+    const insertProp = db.prepare(`
+      INSERT OR REPLACE INTO properties (id, name_en, name_ar, address_en, address_ar, city)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    insertProp.run('prop_default', 'Residential Property', 'العقار السكني', 'Main Building', 'المبنى الرئيسي', 'Cairo');
+
+    // 2. Trades
+    const insertTrade = db.prepare(`
+      INSERT OR REPLACE INTO trades (id, slug, name_en, name_ar, icon, order_index, sort_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const t of SEED_TRADES) {
+      insertTrade.run(t.id, t.slug, t.name_en, t.name_ar, t.icon, t.order_index, t.sort_order || t.order_index);
+    }
+
+    // 3. Subcategories
+    const insertSub = db.prepare(`
+      INSERT OR REPLACE INTO subcategories (id, trade_id, slug, name_en, name_ar, is_elv)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    for (const s of SEED_SUBCATEGORIES) {
+      insertSub.run(s.id, s.trade_id, s.slug, s.name_en, s.name_ar, s.is_elv ? 1 : 0);
+    }
+
+    // 4. Fault Symptoms
+    const insertSymptom = db.prepare(`
+      INSERT OR REPLACE INTO fault_symptoms (
+        id, subcategory_id, symptom_en, symptom_ar, name_en, name_ar,
+        default_severity, default_urgency, is_hazard, hazard_type,
+        hazard_instruction_en, hazard_instruction_ar, hazard_warning_en, hazard_warning_ar
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const sym of SEED_SYMPTOMS) {
+      insertSymptom.run(
+        sym.id,
+        sym.subcategory_id,
+        sym.symptom_en,
+        sym.symptom_ar,
+        sym.symptom_en,
+        sym.symptom_ar,
+        sym.default_severity || 'MEDIUM',
+        sym.default_urgency || (sym.is_hazard ? 'EMERGENCY' : 'NORMAL'),
+        sym.is_hazard ? 1 : 0,
+        sym.hazard_type || null,
+        sym.hazard_instruction_en || null,
+        sym.hazard_instruction_ar || null,
+        sym.hazard_warning_en || null,
+        sym.hazard_warning_ar || null
+      );
+    }
+
+    // 5. Certified Contractors
+    const insertContractor = db.prepare(`
+      INSERT OR REPLACE INTO contractors (
+        id, name_en, name_ar, trade_id, specialties, contact_person, phone, email, rating, is_active
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const c of SEED_CONTRACTORS) {
+      insertContractor.run(
+        c.id,
+        c.name_en,
+        c.name_ar,
+        c.trade_id,
+        c.specialties || '[]',
+        c.contact_person,
+        c.phone,
+        c.email || null,
+        c.rating,
+        c.is_active ? 1 : 0
+      );
+    }
+
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+}
+
 export function seedDatabase(db: DatabaseSync, force = false): void {
   if (force) {
     db.exec('PRAGMA foreign_keys = OFF;');

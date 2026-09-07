@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import fs from 'node:fs';
-import { seedDatabase } from './seed-data';
+import { seedDatabase, seedTaxonomyOnly } from './seed-data';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -209,7 +209,7 @@ export function getDb(dbPath?: string): DatabaseSync {
   try {
     const tradeCount = db.prepare('SELECT COUNT(*) as count FROM trades').get() as { count: number } | undefined;
     if (!tradeCount || tradeCount.count === 0) {
-      seedDatabase(db, false);
+      seedTaxonomyOnly(db);
     }
   } catch (err) {
     console.error('[DB] Auto-seed check failed:', err);

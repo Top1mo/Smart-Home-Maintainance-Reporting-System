@@ -138,10 +138,8 @@ export function ResidentWizard({
             setSelectedUnitId(u.id);
             setUnitNumber(u.unit_number);
             setBuildingName(u.building_name);
-            if (!isLandlordMode) {
-              setResidentName(u.resident_name);
-              setResidentPhone(u.resident_phone);
-            }
+            setResidentName("");
+            setResidentPhone("");
             const uRooms = Array.isArray(u.rooms) && u.rooms.length > 0
               ? u.rooms
               : ["المطبخ", "الحمام الرئيسي", "الريسبشن / الصالة", "غرفة النوم الرئيسية", "البلكونة"];
@@ -165,9 +163,9 @@ export function ResidentWizard({
     if (u) {
       setUnitNumber(u.unit_number);
       setBuildingName(u.building_name);
-      if (!isLandlordMode) {
-        setResidentName(u.resident_name);
-        setResidentPhone(u.resident_phone);
+      if (!isLandlordMode && !residentName) {
+        setResidentName(u.resident_name || "");
+        setResidentPhone(u.resident_phone || "");
       }
       const uRooms: string[] = Array.isArray(u.rooms) && u.rooms.length > 0
         ? u.rooms
@@ -617,10 +615,12 @@ export function ResidentWizard({
             </button>
           </div>
 
-          {/* Single Unit Selector (Dropdown from registered units) */}
+          {/* Single Unit Selector (Dropdown from registered units or direct input) */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-[var(--foreground)]">
-              {locale === "ar" ? "الوحدة السكنية المسجلة:" : "Registered Residential Unit:"}
+              {units.length > 0
+                ? (locale === "ar" ? "الوحدة السكنية المسجلة:" : "Registered Residential Unit:")
+                : (locale === "ar" ? "بيانات الشقة والعمارة:" : "Unit & Building:")}
             </label>
             {units.length > 0 ? (
               <select
@@ -637,10 +637,23 @@ export function ResidentWizard({
                 ))}
               </select>
             ) : (
-              <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--muted)] text-xs text-[var(--muted-foreground)]">
-                {locale === "ar"
-                  ? "لا توجد وحدات مسجلة حالياً — يمكنك إضافتها من تبويب الإدارة والوحدات"
-                  : "No registered units found — you can add units from Management & Units tab"}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <input
+                  type="text"
+                  required
+                  value={unitNumber}
+                  onChange={(e) => setUnitNumber(e.target.value)}
+                  placeholder={locale === "ar" ? "رقم الشقة / الوحدة (مثال: 12)" : "Unit Number (e.g. 12)"}
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                />
+                <input
+                  type="text"
+                  required
+                  value={buildingName}
+                  onChange={(e) => setBuildingName(e.target.value)}
+                  placeholder={locale === "ar" ? "اسم العمارة / المجمع" : "Building / Block"}
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                />
               </div>
             )}
           </div>
