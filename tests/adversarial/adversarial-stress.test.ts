@@ -10,7 +10,7 @@ import { POST as postCommunications } from '@/app/api/tickets/[id]/communication
 import { GET as getStats } from '@/app/api/stats/route';
 import { canTransition, validateTransitionPayload, VALID_TRANSITIONS, TicketStatus } from '@/lib/state-machine';
 
-describe('Tier 5: Adversarial Stress Test Suite (Challenger M1-1)', () => {
+describe('Tier 5: Adversarial Stress & Security Test Suite', () => {
   beforeEach(() => {
     const db = getDb();
     seedDatabase(db, true);

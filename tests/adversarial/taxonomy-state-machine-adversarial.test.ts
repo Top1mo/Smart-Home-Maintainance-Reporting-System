@@ -15,13 +15,13 @@ import { GET as getTrades } from '@/app/api/trades/route';
 import { POST as postTickets } from '@/app/api/tickets/route';
 import { POST as postTransition } from '@/app/api/tickets/[id]/transition/route';
 
-describe('Milestone 1 Empirical Challenger 2: Taxonomy, ELV, Hazards, Arabic, State Machine Edge Cases', () => {
+describe('Adversarial & Edge Cases: Taxonomy, ELV Systems, Hazards, Arabic RTL, State Machine Transitions', () => {
   beforeEach(() => {
     const db = getDb();
     seedDatabase(db, true);
   });
 
-  describe('1. 11-Trade Taxonomy Completeness & Hierarchy (ORIGINAL_REQUEST R2)', () => {
+  describe('1. 11-Trade Taxonomy Completeness & Hierarchy', () => {
     const REQUIRED_11_TRADES = [
       { slug: 'PLUMBING', en: 'Plumbing', ar: 'سباكة' },
       { slug: 'ELECTRICAL', en: 'Electrical', ar: 'كهرباء' },

@@ -40,8 +40,9 @@ next-env.d.ts
 
 # sqlite database runtime files
 data/*
+!data/.gitkeep
 *.db*
 *.sqlite*
 
-# internal agent logs
+# internal agent logs & scratch
 .agents/

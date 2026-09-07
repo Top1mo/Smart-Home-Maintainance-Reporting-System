@@ -1,6 +1,24 @@
 {
   "name": "home-faults-report-system",
   "version": "1.0.0",
+  "description": "Bilingual (Arabic RTL & English) residential maintenance operations portal with 11-trade taxonomy, dispatcher triage, punch list PDF generation, and landlord unit management.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Top1mo/Smart-Home-Maintainance-Reporting-System.git"
+  },
+  "keywords": [
+    "nextjs",
+    "react",
+    "maintenance-system",
+    "property-management",
+    "bilingual",
+    "arabic-rtl",
+    "sqlite",
+    "punch-list",
+    "work-orders",
+    "tailwindcss"
+  ],
+  "license": "MIT",
   "private": true,
   "scripts": {
     "dev": "next dev",
