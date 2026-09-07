@@ -55,19 +55,31 @@ export function TicketCard({
           </h3>
         </div>
 
-        {/* Status Pill */}
-        <div
-          className={`tactile-pill text-[10px] whitespace-nowrap ${statusMeta.badge.bg} ${statusMeta.badge.border} ${statusMeta.badge.text}`}
-        >
-          {locale === "ar" ? statusMeta.label_ar : statusMeta.label_en}
+        {/* Status Pill & Badges */}
+        <div className="flex flex-col items-end gap-1">
+          <div
+            className={`tactile-pill text-[10px] whitespace-nowrap ${statusMeta.badge.bg} ${statusMeta.badge.border} ${statusMeta.badge.text}`}
+          >
+            {locale === "ar" ? statusMeta.label_ar : statusMeta.label_en}
+          </div>
+          {ticket.parts_needed ? (
+            <div className="tactile-pill text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 whitespace-nowrap">
+              {locale === "ar" ? "مطلوب قطع غيار" : "Parts Needed"}
+            </div>
+          ) : null}
         </div>
       </div>
 
       <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mt-3 pt-2 border-t border-[var(--border)]">
         <div>
           <span className="font-semibold text-[var(--foreground)]">
-            {locale === "ar" ? "الوحدة:" : "Unit:"} {ticket.unit_number || "-"}
+            {locale === "ar" ? "وحدة:" : "Unit:"} {ticket.unit_number || "-"}
           </span>
+          {ticket.building_name && (
+            <span className="text-[11px] text-[var(--muted-foreground)] mr-1">
+              ({ticket.building_name})
+            </span>
+          )}
           <span className="mx-1.5">•</span>
           <span>{locale === "ar" ? ticket.trade_ar || ticket.trade_id : ticket.trade_en || ticket.trade_id}</span>
         </div>

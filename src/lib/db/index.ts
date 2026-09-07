@@ -126,6 +126,9 @@ CREATE TABLE IF NOT EXISTS tickets (
     resolution_notes TEXT,
     photos TEXT DEFAULT '[]',
     photo_urls TEXT DEFAULT '[]',
+    parts_needed INTEGER DEFAULT 0,
+    parts_description TEXT,
+    building_name TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     resolved_at TEXT
@@ -201,6 +204,21 @@ export function getDb(dbPath?: string): DatabaseSync {
   // Schema migration for existing databases: ensure 'rooms' column exists on units
   try {
     db.exec("ALTER TABLE units ADD COLUMN rooms TEXT DEFAULT '[]';");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.exec("ALTER TABLE tickets ADD COLUMN parts_needed INTEGER DEFAULT 0;");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.exec("ALTER TABLE tickets ADD COLUMN parts_description TEXT;");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.exec("ALTER TABLE tickets ADD COLUMN building_name TEXT;");
   } catch {
     // Column already exists
   }

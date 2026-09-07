@@ -27,6 +27,8 @@ interface Ticket {
   resident_phone: string;
   assigned_contractor_id?: string;
   appointment_date?: string;
+  parts_needed?: boolean | number;
+  parts_description?: string;
   photos?: string[];
   created_at: string;
 }
@@ -142,6 +144,18 @@ export function WorkOrderSlip({
               <div>
                 <span className="font-bold text-red-800 block">تنبيه سلامة ومخاطر داهمة (CRITICAL HAZARD):</span>
                 <span>يرجى اتخاذ تدابير الأمان وعزل مصادر التيار أو المحابس فور وصول الفني للموقع قبل الشروع في الإصلاح.</span>
+              </div>
+            </div>
+          )}
+
+          {/* Spare Parts Notice (if parts are required) */}
+          {Boolean(ticket.parts_needed) && (
+            <div className="p-2.5 border-2 border-amber-600 bg-amber-50 text-amber-950 text-xs flex items-start gap-2 print-avoid-break">
+              <div className="font-bold text-amber-800 shrink-0">
+                مطلوب شراء قطع غيار ومستلزمات:
+              </div>
+              <div className="font-semibold text-amber-950">
+                {ticket.parts_description || "مطلوب تأمين مستلزمات وقطع غيار قبل التوجه للموقع."}
               </div>
             </div>
           )}

@@ -5,7 +5,7 @@ import { seedDatabase } from '@/lib/db/seed';
 
 import { GET as getTrades } from '@/app/api/trades/route';
 import { GET as getTickets, POST as postTickets } from '@/app/api/tickets/route';
-import { GET as getTicketById } from '@/app/api/tickets/[id]/route';
+import { GET as getTicketById, PATCH as patchTicketById } from '@/app/api/tickets/[id]/route';
 import { POST as postTransition } from '@/app/api/tickets/[id]/transition/route';
 import { GET as getCommunications, POST as postCommunications } from '@/app/api/tickets/[id]/communications/route';
 import { GET as getStats } from '@/app/api/stats/route';
@@ -214,7 +214,7 @@ describe('Next.js 16 REST API Route Handlers Integration', () => {
         unit_number: '505',
         building_name: 'Tower C',
         floor_number: 5,
-        resident_name: 'Mahmoud Hassan',
+        resident_name: 'الساكن',
         resident_phone: '+201099887766',
         rooms: customRooms,
       }),
@@ -233,7 +233,7 @@ describe('Next.js 16 REST API Route Handlers Integration', () => {
         unit_number: '505',
         building_name: 'Tower C',
         floor_number: 5,
-        resident_name: 'Mahmoud Hassan',
+        resident_name: 'الساكن',
         resident_phone: '+201099887766',
         rooms: [...customRooms, 'غرفة المكتب'],
       }),
@@ -270,5 +270,68 @@ describe('Next.js 16 REST API Route Handlers Integration', () => {
     expect(event).toBeDefined();
     expect(event.to_status).toBe('SUBMITTED');
     expect(event.notes).toContain('Recurring leak');
+  });
+
+  it('POST /api/tickets supports sym_other_custom with auto-upsert and building_name auto-population', async () => {
+    const payload = {
+      property_name: 'Palm Hills Heights',
+      unit_number: '101',
+      resident_name: 'الساكن',
+      resident_phone: '01012345678',
+      trade_id: 'trade_plumbing',
+      room_location_ar: 'المطبخ',
+      subcategory_id: 'sub_plumb_valves',
+      symptom_id: 'sym_other_custom',
+      custom_symptom_text: 'عطل غير معتاد في وصلة سخان الغاز',
+      description: 'تسريب قطرات مستمر أسفل التوصيلة الميكانيكية',
+      photos: [],
+    };
+
+    const req = new NextRequest('http://localhost:3000/api/tickets', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    const res = await postTickets(req);
+    expect(res.status).toBe(201);
+
+    const data = await res.json();
+    expect(data.ticket).toBeDefined();
+    expect(data.ticket.symptom_id).toBe('sym_other_custom');
+    // Verify building name was populated from unit 101
+    expect(data.ticket.building_name).toBeDefined();
+    expect(data.ticket.building_name).not.toBe('');
+    // Verify joined fields are returned directly
+    expect(data.ticket.trade_ar).toBeDefined();
+    expect(data.ticket.symptom_ar).toBe('عطل غير معتاد في وصلة سخان الغاز');
+
+    // Verify foreign key passed and symptom was recorded in db
+    const db = getDb();
+    const symRow: any = db.prepare('SELECT * FROM fault_symptoms WHERE id = ?').get('sym_other_custom');
+    expect(symRow).toBeDefined();
+  });
+
+  it('PATCH /api/tickets/[id] updates parts_needed and parts_description', async () => {
+    const patchReq = new NextRequest('http://localhost:3000/api/tickets/tkt_1', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        parts_needed: true,
+        parts_description: 'محبس نحاس 1 بوصة + شريط تفلون',
+      }),
+    });
+
+    const res = await patchTicketById(patchReq, { params: Promise.resolve({ id: 'tkt_1' }) });
+    expect(res.status).toBe(200);
+
+    const data = await res.json();
+    expect(data.ticket).toBeDefined();
+    expect(Boolean(data.ticket.parts_needed)).toBe(true);
+    expect(data.ticket.parts_description).toBe('محبس نحاس 1 بوصة + شريط تفلون');
+
+    // Verify in db
+    const db = getDb();
+    const row: any = db.prepare('SELECT parts_needed, parts_description FROM tickets WHERE id = ?').get('tkt_1');
+    expect(row.parts_needed).toBe(1);
+    expect(row.parts_description).toBe('محبس نحاس 1 بوصة + شريط تفلون');
   });
 });

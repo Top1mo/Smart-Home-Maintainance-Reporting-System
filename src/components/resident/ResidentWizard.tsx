@@ -89,6 +89,7 @@ export function ResidentWizard({
   const [selectedSymptom, setSelectedSymptom] = useState<any | null>(null);
   const [isOtherSymptom, setIsOtherSymptom] = useState<boolean>(false);
   const [customSymptomText, setCustomSymptomText] = useState<string>("");
+  const [faultDetailText, setFaultDetailText] = useState<string>("");
 
   // Location & Resident Info
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
@@ -230,9 +231,10 @@ export function ResidentWizard({
 
     setSubmitting(true);
     try {
+      const extraSpec = faultDetailText.trim() ? `[توضيح العطل: ${faultDetailText.trim()}]` : "";
       const finalDesc = isOtherSymptom && customSymptomText
-        ? `[عطل مخصص: ${customSymptomText}] ${description}`.trim()
-        : description.trim();
+        ? `[عطل مخصص: ${customSymptomText}] ${extraSpec} ${description}`.trim()
+        : `${extraSpec} ${description}`.trim();
 
       const finalRoom = isOtherRoom ? customRoomText.trim() : roomLocation.trim();
       const currentUnit = units.find((x) => x.id === selectedUnitId);
@@ -292,7 +294,7 @@ export function ResidentWizard({
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-4 pb-12 sm:pb-8">
+    <div className="w-full max-w-2xl mx-auto space-y-4 pb-12 sm:pb-8 screen-dashboard-content">
       {/* Mobile-Friendly Stepper Header with Arabic Labels */}
       <div className="tactile-card p-3 sm:p-4 bg-[var(--card)]">
         <div className="flex items-center justify-between">
@@ -565,6 +567,22 @@ export function ResidentWizard({
                         }
                       }}
                       placeholder={locale === "ar" ? "مثال: لمبة الشرفة بتنور وتطفي لوحدها" : "e.g. Balcony light flickers intermittently"}
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                    />
+                  </div>
+                )}
+
+                {/* Optional Fault Detail Specification Input (for standard symptoms) */}
+                {selectedSymptom && !isOtherSymptom && (
+                  <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-1.5 animate-in fade-in">
+                    <label className="text-xs font-bold text-sky-900 dark:text-sky-300">
+                      {locale === "ar" ? "توضيح إضافي لنوع العطل (اختياري):" : "Additional fault specification (optional):"}
+                    </label>
+                    <input
+                      type="text"
+                      value={faultDetailText}
+                      onChange={(e) => setFaultDetailText(e.target.value)}
+                      placeholder={locale === "ar" ? "مثال: الصوت بيظهر عند تشغيل السرعة العالية أو فتح المحبس" : "e.g. noise only happens on high speed"}
                       className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                     />
                   </div>

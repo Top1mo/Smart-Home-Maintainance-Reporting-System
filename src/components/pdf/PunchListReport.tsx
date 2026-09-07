@@ -12,6 +12,7 @@ import {
   Clock,
   User,
   Download,
+  Camera,
 } from "lucide-react";
 
 export interface PunchListTicket {
@@ -42,6 +43,7 @@ export interface PunchListTicket {
   status: string;
   resident_name?: string;
   resident_phone?: string;
+  photos?: string[];
   created_at: string;
 }
 
@@ -63,6 +65,30 @@ export function PunchListReport({
   const [filterUnit, setFilterUnit] = useState<string>("ALL");
   const [filterTrade, setFilterTrade] = useState<string>("ALL");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [showThumbnails, setShowThumbnails] = useState<boolean>(false);
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "SUBMITTED":
+        return "جديد (قيد الفحص)";
+      case "UNDER_REVIEW":
+        return "قيد المعاينة";
+      case "CONTRACTOR_CONTACTED":
+        return "بانتظار المقاول";
+      case "APPOINTMENT_SCHEDULED":
+        return "موعد محدد";
+      case "IN_PROGRESS":
+        return "جاري الإصلاح";
+      case "RESOLVED":
+        return "تم الإنجاز";
+      case "CLOSED":
+        return "معتمد ومكتمل";
+      case "REJECTED":
+        return "مستبعد / مرفوض";
+      default:
+        return status;
+    }
+  };
 
   useEffect(() => {
     document.body.classList.add("modal-open-for-print");
@@ -122,7 +148,8 @@ export function PunchListReport({
   const availableUnits = useMemo(() => {
     const units = new Set<string>();
     tickets.forEach((t) => {
-      if (t.unit_number) units.add(t.unit_number);
+      const u = (t.unit_number || "").trim();
+      if (u) units.add(u);
     });
     return Array.from(units).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }, [tickets]);
@@ -140,12 +167,21 @@ export function PunchListReport({
   // Filtered tickets
   const filteredTickets = useMemo(() => {
     return tickets.filter((t) => {
-      if (filterUnit !== "ALL" && t.unit_number !== filterUnit) return false;
+      const tUnit = (t.unit_number || "").trim();
+      if (filterUnit !== "ALL" && tUnit !== filterUnit.trim()) return false;
       if (filterTrade !== "ALL") {
         const tradeKey = t.trade_slug || t.trade_id || t.trade_name_ar || t.trade_ar || t.trade_name_en;
         if (tradeKey !== filterTrade) return false;
       }
-      if (filterStatus === "ACTIVE" && (t.status === "RESOLVED" || t.status === "CLOSED" || t.status === "REJECTED")) {
+      // If user specifically requests REJECTED audit
+      if (filterStatus === "REJECTED") {
+        return t.status === "REJECTED";
+      }
+      // For all normal modes, rejected reports are excluded from the punch list
+      if (t.status === "REJECTED") {
+        return false;
+      }
+      if (filterStatus === "ACTIVE" && (t.status === "RESOLVED" || t.status === "CLOSED")) {
         return false;
       }
       if (filterStatus === "RESOLVED" && t.status !== "RESOLVED" && t.status !== "CLOSED") {
@@ -274,12 +310,25 @@ export function PunchListReport({
               onChange={(e) => setFilterStatus(e.target.value)}
               className="bg-transparent text-white text-xs border-none outline-none cursor-pointer"
             >
-              <option value="ALL" className="bg-slate-900">كل الحالات</option>
+              <option value="ALL" className="bg-slate-900">كل المهام المعتمدة</option>
               <option value="ACTIVE" className="bg-slate-900">المهام الجارية فقط</option>
               <option value="HAZARD" className="bg-slate-900">تنبيهات الأمان فقط</option>
               <option value="RESOLVED" className="bg-slate-900">المنتهي والمكتمل</option>
+              <option value="REJECTED" className="bg-slate-900">البلاغات المستبعدة / المرفوضة</option>
             </select>
           </div>
+
+          {/* Photo Thumbnails Toggle */}
+          <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer select-none bg-slate-800 px-2.5 py-1 rounded border border-slate-700 hover:bg-slate-700/60 transition-colors">
+            <input
+              type="checkbox"
+              checked={showThumbnails}
+              onChange={(e) => setShowThumbnails(e.target.checked)}
+              className="rounded border-slate-600 accent-sky-500 cursor-pointer w-3.5 h-3.5"
+            />
+            <Camera className="w-3.5 h-3.5 text-sky-400" />
+            <span className="text-[11px] font-semibold">عرض الصور</span>
+          </label>
 
           <button
             onClick={handlePrint}
@@ -473,6 +522,16 @@ export function PunchListReport({
                                     ⚠ تنبيه أمان: يتطلب فصل المصدر قبل البدء
                                   </div>
                                 )}
+                                {showThumbnails && task.photos && task.photos.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1.5 print-avoid-break">
+                                    {task.photos.map((photo, pIdx) => (
+                                      <div key={pIdx} className="w-8 h-8 rounded border border-slate-400 overflow-hidden bg-slate-100 shrink-0">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={photo} alt="Fault" className="w-full h-full object-cover" />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </td>
 
                               {/* Urgency */}
@@ -486,8 +545,16 @@ export function PunchListReport({
 
                               {/* Status */}
                               <td className="p-1.5 text-center border-l border-slate-300 whitespace-nowrap">
-                                <span className={isResolved ? "text-emerald-800 font-bold" : "text-slate-700"}>
-                                  {isResolved ? "تم الإنجاز" : "قيد التنفيذ"}
+                                <span
+                                  className={`text-[11px] ${
+                                    isResolved
+                                      ? "text-emerald-800 font-bold"
+                                      : task.status === "REJECTED"
+                                      ? "text-red-700 font-bold"
+                                      : "text-slate-800 font-semibold"
+                                  }`}
+                                >
+                                  {getStatusLabel(task.status)}
                                 </span>
                               </td>
 

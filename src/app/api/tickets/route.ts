@@ -79,12 +79,18 @@ export async function GET(request: NextRequest) {
     const selectSql = `
       SELECT 
         t.*,
+        COALESCE(t.building_name, u.building_name, 'المبنى الرئيسي') AS building_name,
+        u.floor_number AS unit_floor_number,
         tr.name_en AS trade_name_en,
         tr.name_ar AS trade_name_ar,
+        tr.name_ar AS trade_ar,
+        tr.name_en AS trade_en,
         tr.slug AS trade_slug,
         tr.icon AS trade_icon,
         sc.name_en AS subcategory_name_en,
         sc.name_ar AS subcategory_name_ar,
+        sc.name_ar AS subcategory_ar,
+        sc.name_en AS subcategory_en,
         sc.is_elv AS subcategory_is_elv,
         fs.symptom_en,
         fs.symptom_ar,
@@ -96,6 +102,7 @@ export async function GET(request: NextRequest) {
         c.phone AS contractor_phone,
         c.rating AS contractor_rating
       FROM tickets t
+      LEFT JOIN units u ON (t.unit_id = u.id OR t.unit_number = u.unit_number)
       LEFT JOIN trades tr ON t.trade_id = tr.id
       LEFT JOIN subcategories sc ON t.subcategory_id = sc.id
       LEFT JOIN fault_symptoms fs ON t.symptom_id = fs.id
@@ -110,6 +117,7 @@ export async function GET(request: NextRequest) {
     const tickets = rows.map((r) => ({
       ...r,
       is_hazard: Boolean(r.is_hazard),
+      parts_needed: Boolean(r.parts_needed),
       photos: safeParsePhotos(r.photos || r.photo_urls),
       photo_urls: safeParsePhotos(r.photo_urls || r.photos),
     }));
@@ -135,9 +143,11 @@ export async function POST(request: NextRequest) {
       property_id,
       unit_number,
       unit_id,
+      building_name,
       trade_id,
       subcategory_id,
       symptom_id,
+      custom_symptom_text,
       room_location_en,
       room_location_ar,
       custom_description,
@@ -151,11 +161,21 @@ export async function POST(request: NextRequest) {
     const finalDescription = custom_description || description || '';
     const finalPhotos = photo_urls || photos || [];
 
-    // If unit_id provided but not unit_number / resident info, auto-populate from units table
-    if (unit_id && (!unit_number || !resident_name || !resident_phone)) {
+    // Auto-populate unit, building, and resident info if unit_id or unit_number provided
+    if (unit_id) {
       const unitRow: any = db.prepare('SELECT * FROM units WHERE id = ?').get(unit_id);
       if (unitRow) {
         unit_number = unit_number || unitRow.unit_number;
+        building_name = building_name || unitRow.building_name;
+        resident_name = resident_name || unitRow.resident_name;
+        resident_phone = resident_phone || unitRow.resident_phone;
+        property_id = property_id || unitRow.property_id;
+      }
+    } else if (unit_number && !building_name) {
+      const unitRow: any = db.prepare('SELECT * FROM units WHERE unit_number = ?').get(unit_number);
+      if (unitRow) {
+        building_name = unitRow.building_name;
+        unit_id = unit_id || unitRow.id;
         resident_name = resident_name || unitRow.resident_name;
         resident_phone = resident_phone || unitRow.resident_phone;
         property_id = property_id || unitRow.property_id;
@@ -198,6 +218,18 @@ export async function POST(request: NextRequest) {
         { error: `Subcategory ${subcategory_id} does not belong to trade ${trade_id}` },
         { status: 400 }
       );
+    }
+
+    // Dynamic support for custom "Other" symptom IDs (e.g. sym_other_custom)
+    const isCustomSymptom = symptom_id === 'sym_other_custom' || String(symptom_id).startsWith('sym_other');
+    if (isCustomSymptom) {
+      const customLabel = custom_symptom_text || finalDescription || 'عطل آخر غير مدرج';
+      db.prepare(`
+        INSERT OR REPLACE INTO fault_symptoms (
+          id, subcategory_id, symptom_en, symptom_ar, name_en, name_ar,
+          default_severity, default_urgency, is_hazard
+        ) VALUES (?, ?, ?, ?, ?, ?, 'MEDIUM', 'NORMAL', 0)
+      `).run(symptom_id, subcategory_id, customLabel, customLabel, customLabel, customLabel);
     }
 
     // Verify symptom and check hazard
@@ -262,12 +294,12 @@ export async function POST(request: NextRequest) {
     try {
       db.prepare(`
         INSERT INTO tickets (
-          id, reference_no, property_id, property_name, unit_id, unit_number,
+          id, reference_no, property_id, property_name, unit_id, unit_number, building_name,
           trade_id, subcategory_id, symptom_id, room_location_en, room_location_ar,
           custom_description, description, severity, urgency, is_hazard, status,
           resident_name, resident_phone, photos, photo_urls, created_at, updated_at
         ) VALUES (
-          ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, 'SUBMITTED',
           ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
@@ -279,6 +311,7 @@ export async function POST(request: NextRequest) {
         property_name,
         unit_id || null,
         unit_number,
+        building_name || null,
         trade_id,
         subcategory_id,
         symptom_id,
@@ -312,7 +345,41 @@ export async function POST(request: NextRequest) {
       throw e;
     }
 
-    const created: any = db.prepare('SELECT * FROM tickets WHERE id = ?').get(ticketId);
+    const createdSql = `
+      SELECT 
+        t.*,
+        COALESCE(t.building_name, u.building_name, 'المبنى الرئيسي') AS building_name,
+        u.floor_number AS unit_floor_number,
+        tr.name_en AS trade_name_en,
+        tr.name_ar AS trade_name_ar,
+        tr.name_ar AS trade_ar,
+        tr.name_en AS trade_en,
+        tr.slug AS trade_slug,
+        tr.icon AS trade_icon,
+        sc.name_en AS subcategory_name_en,
+        sc.name_ar AS subcategory_name_ar,
+        sc.name_ar AS subcategory_ar,
+        sc.name_en AS subcategory_en,
+        sc.is_elv AS subcategory_is_elv,
+        fs.symptom_en,
+        fs.symptom_ar,
+        fs.hazard_type,
+        fs.hazard_instruction_en,
+        fs.hazard_instruction_ar,
+        c.name_en AS contractor_name_en,
+        c.name_ar AS contractor_name_ar,
+        c.phone AS contractor_phone,
+        c.rating AS contractor_rating
+      FROM tickets t
+      LEFT JOIN units u ON (t.unit_id = u.id OR t.unit_number = u.unit_number)
+      LEFT JOIN trades tr ON t.trade_id = tr.id
+      LEFT JOIN subcategories sc ON t.subcategory_id = sc.id
+      LEFT JOIN fault_symptoms fs ON t.symptom_id = fs.id
+      LEFT JOIN contractors c ON t.assigned_contractor_id = c.id
+      WHERE t.id = ?
+    `;
+
+    const created: any = db.prepare(createdSql).get(ticketId);
     const event: any = db.prepare('SELECT * FROM ticket_events WHERE ticket_id = ? ORDER BY id DESC LIMIT 1').get(ticketId);
 
     return NextResponse.json(

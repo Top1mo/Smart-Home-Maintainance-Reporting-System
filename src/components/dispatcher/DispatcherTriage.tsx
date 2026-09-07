@@ -20,6 +20,8 @@ import {
   ChevronRight,
   Archive,
   RotateCcw,
+  Wrench,
+  X,
 } from "lucide-react";
 import {
   TicketStatus,
@@ -37,7 +39,10 @@ export function DispatcherTriage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [printTicket, setPrintTicket] = useState<any | null>(null);
-  const [mobileView, setMobileView] = useState<"list" | "detail">("list");
+  const [isMobileDetailOpen, setIsMobileDetailOpen] = useState<boolean>(false);
+  const [partsNeeded, setPartsNeeded] = useState<boolean>(false);
+  const [partsDescription, setPartsDescription] = useState<string>("");
+  const [savingParts, setSavingParts] = useState<boolean>(false);
   const [activeSubTab, setActiveSubTab] = useState<"active" | "archive" | "punch_list">("active");
   const [republishing, setRepublishing] = useState<boolean>(false);
 
@@ -136,7 +141,7 @@ export function DispatcherTriage() {
       setActiveSubTab("active");
       if (newTicket?.id) {
         setSelectedTicketId(newTicket.id);
-        setMobileView("detail");
+        setIsMobileDetailOpen(true);
       }
       alert(
         locale === "ar"
@@ -154,6 +159,38 @@ export function DispatcherTriage() {
   const allowedTransitions = activeTicket
     ? getAllowedTransitions(activeTicket.status as TicketStatus)
     : [];
+
+  useEffect(() => {
+    if (activeTicket) {
+      setPartsNeeded(Boolean(activeTicket.parts_needed));
+      setPartsDescription(activeTicket.parts_description || "");
+    }
+  }, [activeTicket?.id, activeTicket?.parts_needed, activeTicket?.parts_description]);
+
+  const handleSavePartsNeeded = async () => {
+    if (!activeTicket) return;
+    setSavingParts(true);
+    try {
+      const res = await fetch(`/api/tickets/${activeTicket.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          parts_needed: partsNeeded,
+          parts_description: partsDescription.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update parts status");
+      const data = await res.json();
+      setTickets((prev) =>
+        prev.map((t) => (t.id === activeTicket.id ? { ...t, ...data.ticket } : t))
+      );
+      alert(locale === "ar" ? "تم حفظ تحديث قطع الغيار بنجاح" : "Parts status updated successfully");
+    } catch (err: any) {
+      alert(err.message || "Failed to update parts");
+    } finally {
+      setSavingParts(false);
+    }
+  };
 
   // Filtered ticket queue
   const filteredTickets = currentPool.filter((t) => {
@@ -222,6 +259,257 @@ export function DispatcherTriage() {
     }
   };
 
+  const renderTicketDetailContent = (ticket: any, isMobileModal: boolean = false) => {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        {/* Detail Header */}
+        <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--border)] pb-4">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono text-sm font-extrabold text-sky-600 dark:text-sky-400">
+                {ticket.reference_no || ticket.id}
+              </span>
+              {ticket.is_hazard && (
+                <span className="flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-600 border border-red-500/30 animate-pulse">
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <span>{locale === "ar" ? "خطر وسلامة عاجل" : "CRITICAL HAZARD"}</span>
+                </span>
+              )}
+              {ticket.parts_needed ? (
+                <span className="flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/30">
+                  <Wrench className="w-3.5 h-3.5" />
+                  <span>{locale === "ar" ? "مطلوب قطع غيار" : "Parts Needed"}</span>
+                </span>
+              ) : null}
+            </div>
+            <h2 className="text-lg font-bold tracking-tight text-[var(--foreground)] mt-1">
+              {ticket.symptom_ar && locale === "ar"
+                ? ticket.symptom_ar
+                : ticket.symptom_en || ticket.symptom_id}
+            </h2>
+          </div>
+
+          <div className="text-end">
+            <div className="flex items-center justify-end gap-2 flex-wrap">
+              {/* Republish Button if Archived */}
+              {isArchivedStatus(ticket.status) && (
+                <button
+                  type="button"
+                  onClick={() => handleRepublishTicket(ticket.id)}
+                  disabled={republishing}
+                  className="tactile-button px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                  title={locale === "ar" ? "إعادة نشر وتفعيل البلاغ في قائمة المتابعة" : "Republish Ticket to Active Queue"}
+                >
+                  <RotateCcw className={`w-3.5 h-3.5 ${republishing ? "animate-spin" : ""}`} />
+                  <span>{locale === "ar" ? "إعادة نشر البلاغ" : "Republish"}</span>
+                </button>
+              )}
+              {/* Print Work Order Slip Button */}
+              <button
+                type="button"
+                onClick={() => setPrintTicket(ticket)}
+                className="tactile-button px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                title={locale === "ar" ? "طباعة أمر الشغل أو حفظ PDF" : "Print Work Order Slip (PDF)"}
+              >
+                <Printer className="w-3.5 h-3.5 text-sky-400" />
+                <span>{locale === "ar" ? "طباعة أمر الشغل (PDF)" : "Work Order Slip"}</span>
+              </button>
+              <div className="tactile-pill text-xs font-bold bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30">
+                {locale === "ar"
+                  ? STATE_METADATA[ticket.status as TicketStatus]?.label_ar
+                  : STATE_METADATA[ticket.status as TicketStatus]?.label_en}
+              </div>
+            </div>
+            <div className="text-[10px] text-[var(--muted-foreground)] mt-1">
+              {new Date(ticket.created_at).toLocaleString()}
+            </div>
+          </div>
+        </div>
+
+        {/* Resident & Location Details */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-[var(--muted)] text-xs">
+          <div>
+            <span className="text-[var(--muted-foreground)] block">{locale === "ar" ? "الوحدة والعمارة:" : "Unit / Building:"}</span>
+            <span className="font-bold">{ticket.unit_number} ({ticket.building_name || (locale === "ar" ? "المبنى الرئيسي" : "Main Building")})</span>
+          </div>
+          <div>
+            <span className="text-[var(--muted-foreground)] block">{locale === "ar" ? "الساكن للتواصل:" : "Resident:"}</span>
+            <span className="font-bold">{ticket.resident_name}</span>
+          </div>
+          <div>
+            <span className="text-[var(--muted-foreground)] block">{locale === "ar" ? "رقم الموبايل:" : "Phone:"}</span>
+            <span className="font-bold dir-ltr font-mono">{ticket.resident_phone}</span>
+          </div>
+        </div>
+
+        {/* Description */}
+        <div className="space-y-1 text-xs">
+          <span className="font-bold text-[var(--muted-foreground)]">
+            {locale === "ar" ? "وصف وملاحظات العطل:" : "Fault Description:"}
+          </span>
+          <p className="p-3 rounded-lg border border-[var(--border)] bg-[var(--card)] leading-relaxed">
+            {ticket.description || (locale === "ar" ? "لا يوجد وصف إضافي مكتوب." : "No description provided.")}
+          </p>
+        </div>
+
+        {/* Attached Photos */}
+        {ticket.photos && ticket.photos.length > 0 && (
+          <div className="space-y-2 text-xs">
+            <span className="font-bold text-[var(--muted-foreground)]">
+              {locale === "ar" ? "الصور المرفقة:" : "Attached Photos:"}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {ticket.photos.map((p: string, idx: number) => (
+                <div key={idx} className="w-24 h-24 rounded-lg overflow-hidden border border-[var(--border)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p} alt="Attachment" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Parts Needed Section (Addition 2) */}
+        <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2.5 text-xs">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer font-bold text-amber-900 dark:text-amber-300 select-none">
+              <input
+                type="checkbox"
+                checked={partsNeeded}
+                onChange={(e) => setPartsNeeded(e.target.checked)}
+                className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+              />
+              <Wrench className="w-4 h-4 text-amber-600" />
+              <span>{locale === "ar" ? "يحتاج شراء قطع غيار / مستلزمات" : "Parts / Materials Needed"}</span>
+            </label>
+            {ticket.parts_needed ? (
+              <span className="text-[10px] font-bold text-amber-600 bg-amber-500/15 px-2 py-0.5 rounded-md">
+                {locale === "ar" ? "مسجل حالياً: مطلوب" : "Currently: Required"}
+              </span>
+            ) : null}
+          </div>
+
+          {partsNeeded && (
+            <div className="space-y-2 pt-1">
+              <input
+                type="text"
+                value={partsDescription}
+                onChange={(e) => setPartsDescription(e.target.value)}
+                placeholder={locale === "ar" ? "حدد قطع الغيار أو الأدوات المطلوبة للشراء..." : "Specify required spare parts or materials..."}
+                className="w-full px-3 py-2 rounded-lg border border-amber-500/30 bg-[var(--card)] text-[var(--foreground)] text-xs placeholder:text-[var(--muted-foreground)] focus:ring-1 focus:ring-amber-500"
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSavePartsNeeded}
+                  disabled={savingParts}
+                  className="tactile-button px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{savingParts ? (locale === "ar" ? "جاري الحفظ..." : "Saving...") : (locale === "ar" ? "حفظ تحديث قطع الغيار" : "Save Parts Status")}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!partsNeeded && ticket.parts_needed && (
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={handleSavePartsNeeded}
+                disabled={savingParts}
+                className="tactile-button px-3 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-50"
+              >
+                <span>{savingParts ? (locale === "ar" ? "جاري التحديث..." : "Updating...") : (locale === "ar" ? "إلغاء طلب قطع الغيار" : "Clear Parts Needed")}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* State Machine Transition Actions or Republish Card */}
+        <div className="space-y-3 pt-4 border-t border-[var(--border)]">
+          <span className="text-xs font-bold text-[var(--muted-foreground)] block">
+            {locale === "ar" ? "إجراءات المتابعة وتحديث حالة البلاغ:" : "Available Lifecycle Transitions:"}
+          </span>
+
+          {isArchivedStatus(ticket.status) ? (
+            <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+                  <Archive className="w-4 h-4 text-emerald-600" />
+                  <span>
+                    {ticket.status === "REJECTED"
+                      ? (locale === "ar" ? "تم رفض / إلغاء هذا البلاغ" : "This ticket was rejected/cancelled")
+                      : (locale === "ar" ? "هذا البلاغ منتهي ومؤرشف (تم الإنجاز)" : "This ticket is completed & archived")}
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-800 dark:text-emerald-400 mt-1 leading-relaxed">
+                  {locale === "ar"
+                    ? "هل ظهرت المشكلة مجدداً أو يلزم فتح أمر شغل جديد لنفس العطل؟ اضغط أدناه لإعادة نشره في قائمة المتابعة الجارية فوراً."
+                    : "Re-open and republish this fault to the active triage queue with a single click."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRepublishTicket(ticket.id)}
+                disabled={republishing}
+                className="tactile-button px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                <RotateCcw className={`w-4 h-4 ${republishing ? "animate-spin" : ""}`} />
+                <span>
+                  {republishing
+                    ? (locale === "ar" ? "جاري إعادة النشر..." : "Republishing...")
+                    : (locale === "ar" ? "إعادة نشر البلاغ الآن" : "Republish to Active")}
+                </span>
+              </button>
+            </div>
+          ) : allowedTransitions.length === 0 ? (
+            <div className="text-xs text-[var(--muted-foreground)] italic">
+              {locale === "ar" ? "تم إغلاق البلاغ نهائياً (حالة غير قابلة للتعديل)" : "Ticket is in terminal state CLOSED"}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {allowedTransitions.map((nextStatus) => {
+                const meta = STATE_METADATA[nextStatus];
+                const isReject = nextStatus === "REJECTED";
+                const isAdvance = nextStatus === "CONTRACTOR_CONTACTED" || nextStatus === "IN_PROGRESS" || nextStatus === "RESOLVED";
+
+                return (
+                  <button
+                    key={nextStatus}
+                    onClick={() => setActionModal({ targetStatus: nextStatus, ticketId: ticket.id })}
+                    className={`tactile-button px-3.5 py-2 text-xs font-bold rounded-lg transition-all shadow-sm cursor-pointer ${
+                      isReject
+                        ? "bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/30"
+                        : isAdvance
+                        ? "bg-sky-600 hover:bg-sky-700 text-white"
+                        : "bg-[var(--muted)] hover:bg-[var(--border)] text-[var(--foreground)] border border-[var(--border)]"
+                    }`}
+                  >
+                    {locale === "ar" ? `نقل إلى: ${meta.label_ar}` : `Move to: ${meta.label_en}`}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Close Button for Mobile Modal */}
+        {isMobileModal && (
+          <div className="pt-3 border-t border-[var(--border)] flex justify-end">
+            <button
+              type="button"
+              onClick={() => setIsMobileDetailOpen(false)}
+              className="tactile-button px-4 py-2 bg-[var(--muted)] hover:bg-[var(--border)] text-[var(--foreground)] rounded-lg text-xs font-bold cursor-pointer"
+            >
+              {locale === "ar" ? "إغلاق التفاصيل" : "Close Details"}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       <div className="space-y-4 screen-dashboard-content">
@@ -279,18 +567,6 @@ export function DispatcherTriage() {
             <Printer className="w-4 h-4" />
             <span>{locale === "ar" ? "قائمة مهام الصيانة (Punch List PDF)" : "Punch List (PDF)"}</span>
           </button>
-
-          {activeTicket && (
-            <button
-              type="button"
-              onClick={() => setPrintTicket(activeTicket)}
-              className="px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-              title={locale === "ar" ? "طباعة أمر الشغل للوحدة المحددة" : "Print Work Order Slip"}
-            >
-              <Printer className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>{locale === "ar" ? `طباعة أمر الشغل (وحدة ${activeTicket.unit_number})` : `Work Order #${activeTicket.unit_number} (PDF)`}</span>
-            </button>
-          )}
         </div>
 
         {/* TAB 1: Punch List Report */}
@@ -335,19 +611,6 @@ export function DispatcherTriage() {
                     </option>
                   ))}
                 </select>
-
-                {/* Top Quick Print Button */}
-                {activeTicket && (
-                  <button
-                    type="button"
-                    onClick={() => setPrintTicket(activeTicket)}
-                    className="tactile-button px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer ml-auto"
-                    title={locale === "ar" ? "طباعة أمر الشغل للوحدة المحددة" : "Print Work Order Slip"}
-                  >
-                    <Printer className="w-3.5 h-3.5 text-sky-400" />
-                    <span>{locale === "ar" ? "طباعة أمر الشغل (PDF)" : "Work Order Slip"}</span>
-                  </button>
-                )}
               </div>
 
               <div className="text-xs text-[var(--muted-foreground)] font-semibold">
@@ -357,39 +620,10 @@ export function DispatcherTriage() {
               </div>
             </div>
 
-      {/* Mobile Toggle Bar: Queue vs Details */}
-      <div className="lg:hidden flex items-center bg-[var(--muted)] p-1 rounded-xl border border-[var(--border)] text-xs font-bold">
-        <button
-          type="button"
-          onClick={() => setMobileView("list")}
-          className={`flex-1 py-2 text-center rounded-lg transition-all touch-manipulation cursor-pointer ${
-            mobileView === "list"
-              ? "bg-[var(--card)] text-sky-600 dark:text-sky-400 shadow-sm"
-              : "text-[var(--muted-foreground)]"
-          }`}
-        >
-          {locale === "ar"
-            ? `${activeSubTab === "archive" ? "سجل الأرشيف" : "قائمة البلاغات"} (${filteredTickets.length})`
-            : `${activeSubTab === "archive" ? "Archive" : "Queue"} (${filteredTickets.length})`}
-        </button>
-        <button
-          type="button"
-          disabled={!activeTicket}
-          onClick={() => setMobileView("detail")}
-          className={`flex-1 py-2 text-center rounded-lg transition-all touch-manipulation cursor-pointer ${
-            mobileView === "detail"
-              ? "bg-[var(--card)] text-sky-600 dark:text-sky-400 shadow-sm"
-              : "text-[var(--muted-foreground)] disabled:opacity-40"
-          }`}
-        >
-          {locale === "ar" ? "تفاصيل البلاغ المحدد" : "Selected Details"}
-        </button>
-      </div>
-
-      {/* Split-Pane Master-Detail (Desktop Wide + Mobile Stack) */}
+      {/* Master-Detail Layout (Desktop Side-by-Side + Mobile Modal Sheet) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        {/* Master Pane: Ticket List (Col 5) */}
-        <div className={`lg:col-span-5 space-y-2 max-h-[750px] overflow-y-auto pr-1 ${mobileView === "detail" ? "hidden lg:block" : "block"}`}>
+        {/* Master Pane: Ticket List (Col 5 on desktop, full-width on mobile) */}
+        <div className="lg:col-span-5 space-y-2 max-h-[750px] overflow-y-auto pr-1">
           {loading ? (
             <div className="py-12 text-center text-xs text-[var(--muted-foreground)]">
               {locale === "ar" ? "جاري تحميل البلاغات..." : "Loading triage queue..."}
@@ -410,196 +644,18 @@ export function DispatcherTriage() {
                 isSelected={t.id === selectedTicketId}
                 onClick={() => {
                   setSelectedTicketId(t.id);
-                  setMobileView("detail");
+                  setIsMobileDetailOpen(true);
                 }}
               />
             ))
           )}
         </div>
 
-        {/* Detail Pane: Inspection & Action Center (Col 7) */}
-        <div className={`lg:col-span-7 ${mobileView === "list" ? "hidden lg:block" : "block"}`}>
+        {/* Detail Pane: Desktop Side-by-Side (Col 7 on desktop, hidden on mobile) */}
+        <div className="hidden lg:block lg:col-span-7">
           {activeTicket ? (
             <div className="tactile-card p-4 sm:p-6 space-y-4 sm:space-y-6">
-              {/* Mobile Back Button to Return to Queue */}
-              <div className="lg:hidden pb-3 border-b border-[var(--border)]">
-                <button
-                  type="button"
-                  onClick={() => setMobileView("list")}
-                  className="tactile-button py-2 px-3 bg-[var(--muted)] hover:bg-[var(--border)] text-[var(--foreground)] rounded-lg text-xs font-bold flex items-center gap-1.5 touch-manipulation cursor-pointer"
-                >
-                  {direction === "rtl" ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-                  <span>{locale === "ar" ? "العودة لقائمة البلاغات" : "Back to Ticket Queue"}</span>
-                </button>
-              </div>
-
-              {/* Detail Header */}
-              <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--border)] pb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-extrabold text-sky-600 dark:text-sky-400">
-                      {activeTicket.reference_no || activeTicket.id}
-                    </span>
-                    {activeTicket.is_hazard && (
-                      <span className="flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-600 border border-red-500/30 animate-pulse">
-                        <ShieldAlert className="w-3.5 h-3.5" />
-                        <span>{locale === "ar" ? "خطر وسلامة عاجل" : "CRITICAL HAZARD"}</span>
-                      </span>
-                    )}
-                  </div>
-                  <h2 className="text-lg font-bold tracking-tight text-[var(--foreground)] mt-1">
-                    {activeTicket.symptom_ar && locale === "ar"
-                      ? activeTicket.symptom_ar
-                      : activeTicket.symptom_en || activeTicket.symptom_id}
-                  </h2>
-                </div>
-
-                <div className="text-end">
-                  <div className="flex items-center justify-end gap-2">
-                    {/* Republish Button if Archived */}
-                    {isArchivedStatus(activeTicket.status) && (
-                      <button
-                        type="button"
-                        onClick={() => handleRepublishTicket(activeTicket.id)}
-                        disabled={republishing}
-                        className="tactile-button px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
-                        title={locale === "ar" ? "إعادة نشر وتفعيل البلاغ في قائمة المتابعة" : "Republish Ticket to Active Queue"}
-                      >
-                        <RotateCcw className={`w-3.5 h-3.5 ${republishing ? "animate-spin" : ""}`} />
-                        <span>{locale === "ar" ? "إعادة نشر البلاغ" : "Republish"}</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setPrintTicket(activeTicket)}
-                      className="tactile-button px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
-                      title={locale === "ar" ? "طباعة أمر الشغل أو حفظ PDF" : "Print Work Order Slip (PDF)"}
-                    >
-                      <Printer className="w-3.5 h-3.5 text-sky-400" />
-                      <span>{locale === "ar" ? "طباعة أمر الشغل (PDF)" : "Work Order Slip"}</span>
-                    </button>
-                    <div className="tactile-pill text-xs font-bold bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30">
-                      {locale === "ar"
-                        ? STATE_METADATA[activeTicket.status as TicketStatus]?.label_ar
-                        : STATE_METADATA[activeTicket.status as TicketStatus]?.label_en}
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-[var(--muted-foreground)] mt-1">
-                    {new Date(activeTicket.created_at).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-
-              {/* Resident & Location Details */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-[var(--muted)] text-xs">
-                <div>
-                  <span className="text-[var(--muted-foreground)] block">{locale === "ar" ? "الوحدة والعمارة:" : "Unit / Building:"}</span>
-                  <span className="font-bold">{activeTicket.unit_number} ({activeTicket.building_name || (locale === "ar" ? "المبنى الرئيسي" : "Main Building")})</span>
-                </div>
-                <div>
-                  <span className="text-[var(--muted-foreground)] block">{locale === "ar" ? "الساكن للتواصل:" : "Resident:"}</span>
-                  <span className="font-bold">{activeTicket.resident_name}</span>
-                </div>
-                <div>
-                  <span className="text-[var(--muted-foreground)] block">{locale === "ar" ? "رقم الموبايل:" : "Phone:"}</span>
-                  <span className="font-bold dir-ltr font-mono">{activeTicket.resident_phone}</span>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-1 text-xs">
-                <span className="font-bold text-[var(--muted-foreground)]">
-                  {locale === "ar" ? "وصف وملاحظات العطل:" : "Fault Description:"}
-                </span>
-                <p className="p-3 rounded-lg border border-[var(--border)] bg-[var(--card)] leading-relaxed">
-                  {activeTicket.description || (locale === "ar" ? "لا يوجد وصف إضافي مكتوب." : "No description provided.")}
-                </p>
-              </div>
-
-              {/* Attached Photos */}
-              {activeTicket.photos && activeTicket.photos.length > 0 && (
-                <div className="space-y-2 text-xs">
-                  <span className="font-bold text-[var(--muted-foreground)]">
-                    {locale === "ar" ? "الصور المرفقة:" : "Attached Photos:"}
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {activeTicket.photos.map((p: string, idx: number) => (
-                      <div key={idx} className="w-24 h-24 rounded-lg overflow-hidden border border-[var(--border)]">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={p} alt="Attachment" className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* State Machine Transition Actions or Republish Card */}
-              <div className="space-y-3 pt-4 border-t border-[var(--border)]">
-                <span className="text-xs font-bold text-[var(--muted-foreground)] block">
-                  {locale === "ar" ? "إجراءات المتابعة وتحديث حالة البلاغ:" : "Available Lifecycle Transitions:"}
-                </span>
-
-                {isArchivedStatus(activeTicket.status) ? (
-                  <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="text-xs font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
-                        <Archive className="w-4 h-4 text-emerald-600" />
-                        <span>
-                          {activeTicket.status === "REJECTED"
-                            ? (locale === "ar" ? "تم رفض / إلغاء هذا البلاغ" : "This ticket was rejected/cancelled")
-                            : (locale === "ar" ? "هذا البلاغ منتهي ومؤرشف (تم الإنجاز)" : "This ticket is completed & archived")}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-emerald-800 dark:text-emerald-400 mt-1 leading-relaxed">
-                        {locale === "ar"
-                          ? "هل ظهرت المشكلة مجدداً أو يلزم فتح أمر شغل جديد لنفس العطل؟ اضغط أدناه لإعادة نشره في قائمة المتابعة الجارية فوراً."
-                          : "Re-open and republish this fault to the active triage queue with a single click."}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRepublishTicket(activeTicket.id)}
-                      disabled={republishing}
-                      className="tactile-button px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
-                    >
-                      <RotateCcw className={`w-4 h-4 ${republishing ? "animate-spin" : ""}`} />
-                      <span>
-                        {republishing
-                          ? (locale === "ar" ? "جاري إعادة النشر..." : "Republishing...")
-                          : (locale === "ar" ? "إعادة نشر البلاغ الآن" : "Republish to Active")}
-                      </span>
-                    </button>
-                  </div>
-                ) : allowedTransitions.length === 0 ? (
-                  <div className="text-xs text-[var(--muted-foreground)] italic">
-                    {locale === "ar" ? "تم إغلاق البلاغ نهائياً (حالة غير قابلة للتعديل)" : "Ticket is in terminal state CLOSED"}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {allowedTransitions.map((nextStatus) => {
-                      const meta = STATE_METADATA[nextStatus];
-                      const isReject = nextStatus === "REJECTED";
-                      const isAdvance = nextStatus === "CONTRACTOR_CONTACTED" || nextStatus === "IN_PROGRESS" || nextStatus === "RESOLVED";
-
-                      return (
-                        <button
-                          key={nextStatus}
-                          onClick={() => setActionModal({ targetStatus: nextStatus, ticketId: activeTicket.id })}
-                          className={`tactile-button px-3.5 py-2 text-xs font-bold rounded-lg transition-all shadow-sm ${
-                            isReject
-                              ? "bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/30"
-                              : isAdvance
-                              ? "bg-sky-600 hover:bg-sky-700 text-white"
-                              : "bg-[var(--muted)] hover:bg-[var(--border)] text-[var(--foreground)] border border-[var(--border)]"
-                          }`}
-                        >
-                          {locale === "ar" ? `نقل إلى: ${meta.label_ar}` : `Move to: ${meta.label_en}`}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              {renderTicketDetailContent(activeTicket, false)}
             </div>
           ) : (
             <div className="tactile-card p-12 text-center text-xs text-[var(--muted-foreground)]">
@@ -608,6 +664,28 @@ export function DispatcherTriage() {
           )}
         </div>
       </div>
+
+      {/* Mobile Drawer / Modal Sheet (Slides up over queue when a ticket is clicked) */}
+      {isMobileDetailOpen && activeTicket && (
+        <div className="lg:hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-[var(--card)] w-full max-w-2xl max-h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-y-auto p-4 sm:p-6 border border-[var(--border)] space-y-4 animate-in slide-in-from-bottom duration-300">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+              <span className="text-xs font-bold text-[var(--muted-foreground)]">
+                {locale === "ar" ? "تفاصيل البلاغ المحدد" : "Ticket Details"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsMobileDetailOpen(false)}
+                className="p-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] cursor-pointer transition-colors"
+                aria-label={locale === "ar" ? "إغلاق" : "Close"}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {renderTicketDetailContent(activeTicket, true)}
+          </div>
+        </div>
+      )}
           </>
         )}
 

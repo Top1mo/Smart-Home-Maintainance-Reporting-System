@@ -9,14 +9,12 @@ import {
   Clock,
   ShieldCheck,
   Building,
-  PlusCircle,
   Home,
   Users,
   Printer,
   CheckSquare,
 } from "lucide-react";
 import { UnitManager } from "./UnitManager";
-import { ResidentWizard } from "@/components/resident/ResidentWizard";
 import { PunchListReport } from "@/components/pdf/PunchListReport";
 
 export function LandlordKPIs() {
@@ -24,8 +22,8 @@ export function LandlordKPIs() {
   const [stats, setStats] = useState<any | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Sub-tabs for Landlord: "analytics" | "punch_list" | "report_fault" | "manage_units"
-  const [activeTab, setActiveTab] = useState<"analytics" | "punch_list" | "report_fault" | "manage_units">("analytics");
+  // Sub-tabs for Landlord: "analytics" | "punch_list" | "manage_units"
+  const [activeTab, setActiveTab] = useState<"analytics" | "punch_list" | "manage_units">("analytics");
 
   useEffect(() => {
     async function loadStats() {
@@ -83,19 +81,6 @@ export function LandlordKPIs() {
 
         <button
           type="button"
-          onClick={() => setActiveTab("report_fault")}
-          className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
-            activeTab === "report_fault"
-              ? "bg-[var(--card)] text-emerald-600 dark:text-emerald-400 shadow-sm font-bold"
-              : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-          }`}
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>{locale === "ar" ? "إبلاغ عن عطل (المالك)" : "Report Fault"}</span>
-        </button>
-
-        <button
-          type="button"
           onClick={() => setActiveTab("manage_units")}
           className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
             activeTab === "manage_units"
@@ -104,7 +89,7 @@ export function LandlordKPIs() {
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>{locale === "ar" ? "إدارة الشقق والوحدات" : "Manage Units"}</span>
+          <span>{locale === "ar" ? "إدارة الوحدات" : "Manage Units"}</span>
         </button>
       </div>
 
@@ -226,19 +211,7 @@ export function LandlordKPIs() {
         </div>
       )}
 
-      {/* TAB 2: Report Fault as Landlord */}
-      {activeTab === "report_fault" && (
-        <div className="space-y-4">
-          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-200 text-xs">
-            {locale === "ar"
-              ? "وضع المالك: يمكنك تسجيل بلاغ عن عطل في الأجزاء المشتركة (الأسطح، الحديقة، المصعد) أو نيابة عن أي وحدة سكنية."
-              : "Landlord Mode: Report faults for common facilities (roof, garden, elevator) or on behalf of any unit."}
-          </div>
-          <ResidentWizard isLandlordMode={true} />
-        </div>
-      )}
-
-      {/* TAB 3: Unit Management */}
+      {/* TAB: Unit Management */}
       {activeTab === "manage_units" && <UnitManager />}
     </div>
   );

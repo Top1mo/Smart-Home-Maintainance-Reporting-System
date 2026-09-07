@@ -114,6 +114,9 @@ CREATE TABLE IF NOT EXISTS tickets (
     resolution_notes TEXT,
     photos TEXT DEFAULT '[]', -- JSON Array string
     photo_urls TEXT DEFAULT '[]', -- JSON Array string
+    parts_needed INTEGER DEFAULT 0,
+    parts_description TEXT,
+    building_name TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     resolved_at TEXT

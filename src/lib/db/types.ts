@@ -120,6 +120,9 @@ export interface Ticket {
   resolution_notes?: string | null;
   photos: string[]; // parsed from JSON
   photo_urls?: string[];
+  parts_needed?: boolean | number;
+  parts_description?: string | null;
+  building_name?: string | null;
   created_at: string;
   updated_at: string;
   resolved_at?: string | null;

@@ -139,6 +139,21 @@ describe("PDF Export Components & Punch List Grouping Hierarchy", () => {
       expect(html).toContain("printable-modal-container");
       expect(html).toContain("print-avoid-break");
     });
+
+    it("renders building name and parts needed badge when applicable", () => {
+      const ticketWithBuilding = {
+        ...mockTickets[0],
+        building_name: "عمارة B2",
+        parts_needed: 1,
+        parts_description: "محبس نحاس 1/2 بوصة",
+      };
+      const html = renderToStaticMarkup(
+        <WorkOrderSlip ticket={ticketWithBuilding as any} onClose={() => {}} />
+      );
+      expect(html).toContain("عمارة B2");
+      expect(html).toContain("مطلوب شراء قطع غيار ومستلزمات");
+      expect(html).toContain("محبس نحاس 1/2 بوصة");
+    });
   });
 
   describe("PunchListReport (Multi-Job Master Report)", () => {
@@ -188,6 +203,39 @@ describe("PDF Export Components & Punch List Grouping Hierarchy", () => {
 
       // Resolved task contains checkmark
       expect(html).toContain("✓");
+    });
+
+    it("excludes REJECTED tickets by default from active punch list report", () => {
+      const ticketsWithRejected: PunchListTicket[] = [
+        ...mockTickets,
+        {
+          id: "tkt-rej",
+          reference_no: "TKT-REJECTED-01",
+          property_name: "كمبوند جاردينيا",
+          building_name: "عمارة B2",
+          unit_number: "204",
+          trade_name_ar: "سباكة",
+          trade_name_en: "Plumbing",
+          trade_slug: "plumbing",
+          symptom_ar: "بلاغ ملغي",
+          symptom_en: "Cancelled report",
+          room_location_ar: "المطبخ",
+          description: "تم الرفض لعدم الاختصاص",
+          status: "REJECTED",
+          is_hazard: false,
+          urgency: "NORMAL",
+          resident_name: "أحمد",
+          resident_phone: "010",
+          created_at: "2026-09-01T10:00:00Z",
+        },
+      ];
+
+      const html = renderToStaticMarkup(
+        <PunchListReport tickets={ticketsWithRejected} isModal={false} />
+      );
+
+      expect(html).not.toContain("TKT-REJECTED-01");
+      expect(html).not.toContain("بلاغ ملغي");
     });
 
     it("renders in modal mode with overlay classes when isModal is true", () => {
