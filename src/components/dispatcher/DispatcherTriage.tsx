@@ -52,10 +52,17 @@ export function DispatcherTriage() {
     ticketId: string;
   } | null>(null);
 
+  const getTomorrowSlot = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(10, 0, 0, 0);
+    return d.toISOString();
+  };
+
   const [selectedContractorId, setSelectedContractorId] = useState<string>("");
-  const [appointmentDate, setAppointmentDate] = useState<string>("2026-09-10T14:00:00Z");
+  const [appointmentDate, setAppointmentDate] = useState<string>(getTomorrowSlot());
   const [actionNotes, setActionNotes] = useState<string>("");
-  const [rejectionReason, setRejectionReason] = useState<string>("Duplicate report from same resident");
+  const [rejectionReason, setRejectionReason] = useState<string>("");
   const [actionLoading, setActionLoading] = useState<boolean>(false);
 
   const isArchivedStatus = (status: string) =>
@@ -184,13 +191,13 @@ export function DispatcherTriage() {
       }
 
       if (actionModal.targetStatus === "REJECTED") {
-        payload.rejection_reason = rejectionReason;
+        payload.rejection_reason = rejectionReason.trim() || (locale === "ar" ? "بلاغ مكرر أو ملغي" : "Duplicate or cancelled report");
         payload.rejection_reason_code = "DUPLICATE";
         payload.rejection_notes = actionNotes;
       }
 
       if (actionModal.targetStatus === "RESOLVED") {
-        payload.resolution_notes = actionNotes || "Completed repair successfully.";
+        payload.resolution_notes = actionNotes || (locale === "ar" ? "تم إنهاء أعمال الصيانة والإصلاح بنجاح." : "Maintenance repair completed successfully.");
       }
 
       const res = await fetch(`/api/tickets/${actionModal.ticketId}/transition`, {
@@ -487,7 +494,7 @@ export function DispatcherTriage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-[var(--muted)] text-xs">
                 <div>
                   <span className="text-[var(--muted-foreground)] block">{locale === "ar" ? "الوحدة والعمارة:" : "Unit / Building:"}</span>
-                  <span className="font-bold">{activeTicket.unit_number} ({activeTicket.building_name || "Gardenia"})</span>
+                  <span className="font-bold">{activeTicket.unit_number} ({activeTicket.building_name || (locale === "ar" ? "المبنى الرئيسي" : "Main Building")})</span>
                 </div>
                 <div>
                   <span className="text-[var(--muted-foreground)] block">{locale === "ar" ? "الساكن للتواصل:" : "Resident:"}</span>

@@ -92,10 +92,10 @@ export function ResidentWizard({
 
   // Location & Resident Info
   const [selectedUnitId, setSelectedUnitId] = useState<string>("");
-  const [unitNumber, setUnitNumber] = useState<string>("101");
-  const [buildingName, setBuildingName] = useState<string>("Building A4");
-  const [residentName, setResidentName] = useState<string>("أحمد السيد / Ahmed El-Sayed");
-  const [residentPhone, setResidentPhone] = useState<string>("+20 100 123 4567");
+  const [unitNumber, setUnitNumber] = useState<string>("");
+  const [buildingName, setBuildingName] = useState<string>("");
+  const [residentName, setResidentName] = useState<string>("");
+  const [residentPhone, setResidentPhone] = useState<string>("");
   const [roomLocation, setRoomLocation] = useState<string>("");
   const [isOtherRoom, setIsOtherRoom] = useState<boolean>(false);
   const [customRoomText, setCustomRoomText] = useState<string>("");
@@ -235,13 +235,17 @@ export function ResidentWizard({
         : description.trim();
 
       const finalRoom = isOtherRoom ? customRoomText.trim() : roomLocation.trim();
+      const currentUnit = units.find((x) => x.id === selectedUnitId);
+      const propName = currentUnit?.property_name_ar || currentUnit?.property_name_en || (locale === "ar" ? "العقار السكني" : "Residential Property");
 
       const payload = {
-        unit_number: unitNumber,
-        building_name: buildingName,
-        property_name: "Gardenia Residential Complex",
-        resident_name: isLandlordMode ? `[إدارة العقار / المالك] ${residentName}` : residentName,
-        resident_phone: residentPhone,
+        unit_number: unitNumber || currentUnit?.unit_number || (locale === "ar" ? "غير محدد" : "Unspecified"),
+        building_name: buildingName || currentUnit?.building_name || (locale === "ar" ? "المبنى الرئيسي" : "Main Building"),
+        property_name: propName,
+        resident_name: isLandlordMode
+          ? (residentName ? `[إدارة العقار / المالك] ${residentName}` : (locale === "ar" ? "إدارة العقار" : "Property Management"))
+          : (residentName || currentUnit?.resident_name || (locale === "ar" ? "الساكن" : "Resident")),
+        resident_phone: residentPhone || currentUnit?.resident_phone || "",
         trade_id: selectedTrade.id,
         subcategory_id: selectedSubcategory?.id || selectedTrade.subcategories?.[0]?.id || "sub_general",
         symptom_id: selectedSymptom?.id || "sym_general",
@@ -348,7 +352,7 @@ export function ResidentWizard({
             <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
               {locale === "ar"
                 ? "اضغط على التخصص المطلوب لتحديد المشكلة (سباكة، كهرباء، تكييف، نجارة، إلخ)"
-                : "Select from the 11 residential maintenance trades below"}
+                : "Select the category below (plumbing, electrical, AC, carpentry, etc.)"}
             </p>
           </div>
 
@@ -634,7 +638,9 @@ export function ResidentWizard({
               </select>
             ) : (
               <div className="p-3 rounded-lg border border-[var(--border)] bg-[var(--muted)] text-xs text-[var(--muted-foreground)]">
-                {locale === "ar" ? `شقة ${unitNumber} — ${buildingName}` : `Unit ${unitNumber} — ${buildingName}`}
+                {locale === "ar"
+                  ? "لا توجد وحدات مسجلة حالياً — يمكنك إضافتها من تبويب الإدارة والوحدات"
+                  : "No registered units found — you can add units from Management & Units tab"}
               </div>
             )}
           </div>

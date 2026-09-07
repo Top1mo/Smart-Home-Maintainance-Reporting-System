@@ -14,17 +14,17 @@ export interface Translations {
 
 export const DICTIONARY: Translations = {
   // App Header & Navigation
-  app_title: { en: "Home Faults Report System", ar: "نظام الإبلاغ عن أعطال المنازل" },
-  app_tagline: { en: "Residential Maintenance & Operations Portal", ar: "بوابة صيانة وتشغيل العقارات السكنية" },
-  nav_resident: { en: "Resident Portal", ar: "بوابة السكان" },
-  nav_dispatcher: { en: "Dispatcher Operations", ar: "عمليات المتابعة والتوزيع" },
-  nav_landlord: { en: "Owner & Landlord KPI", ar: "لوحة تحكم المالك" },
+  app_title: { en: "Home Maintenance Portal", ar: "نظام إدارة وصيانة المنزل" },
+  app_tagline: { en: "Fault Reporting & Work Orders", ar: "متابعة وإصلاح الأعطال المنزلية وأوامر الشغل" },
+  nav_resident: { en: "Report Fault", ar: "تسجيل عطل" },
+  nav_dispatcher: { en: "Follow-up", ar: "المتابعة" },
+  nav_landlord: { en: "Management & Units", ar: "الإدارة والوحدات" },
   font_cairo: { en: "Cairo", ar: "Cairo" },
 
   // Role Badges
-  role_resident: { en: "Resident", ar: "ساكن / مستأجر" },
-  role_dispatcher: { en: "Operations Dispatcher", ar: "مسؤول المتابعة" },
-  role_landlord: { en: "Property Owner", ar: "المالك / الإدارة" },
+  role_resident: { en: "Resident", ar: "الساكن" },
+  role_dispatcher: { en: "Operations", ar: "المتابعة الميدانية" },
+  role_landlord: { en: "Owner", ar: "المالك / الإدارة" },
 
   // Resident Wizard Steps
   wizard_step1: { en: "1. Select Trade", ar: "١. اختر التخصص" },

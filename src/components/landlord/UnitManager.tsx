@@ -45,7 +45,7 @@ export function UnitManager() {
 
   // Form fields
   const [unitNumber, setUnitNumber] = useState<string>("");
-  const [buildingName, setBuildingName] = useState<string>("Gardenia Complex");
+  const [buildingName, setBuildingName] = useState<string>("");
   const [floorNumber, setFloorNumber] = useState<number>(1);
   const [residentName, setResidentName] = useState<string>("");
   const [residentPhone, setResidentPhone] = useState<string>("");
@@ -72,7 +72,7 @@ export function UnitManager() {
   const handleOpenAdd = () => {
     setEditingUnitId(null);
     setUnitNumber("");
-    setBuildingName("Gardenia Complex");
+    setBuildingName("");
     setFloorNumber(1);
     setResidentName("");
     setResidentPhone("");
@@ -293,7 +293,7 @@ export function UnitManager() {
                   required
                   value={unitNumber}
                   onChange={(e) => setUnitNumber(e.target.value)}
-                  placeholder="204"
+                  placeholder={locale === "ar" ? "مثال: 12" : "e.g. 12"}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
               </div>
@@ -321,7 +321,7 @@ export function UnitManager() {
                   required
                   value={buildingName}
                   onChange={(e) => setBuildingName(e.target.value)}
-                  placeholder="Tower B"
+                  placeholder={locale === "ar" ? "مثال: عمارة ٤ / برج الياسمين" : "e.g. Building 4 / Tower A"}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
               </div>
@@ -335,7 +335,7 @@ export function UnitManager() {
                   required
                   value={residentName}
                   onChange={(e) => setResidentName(e.target.value)}
-                  placeholder="محمد علي / Mohamed Ali"
+                  placeholder={locale === "ar" ? "الاسم ثلاثي" : "Full Name"}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
               </div>
@@ -349,7 +349,7 @@ export function UnitManager() {
                   required
                   value={residentPhone}
                   onChange={(e) => setResidentPhone(e.target.value)}
-                  placeholder="+20 100 000 0000"
+                  placeholder={locale === "ar" ? "01xxxxxxxxx" : "+20 10xxxxxxxx"}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
               </div>

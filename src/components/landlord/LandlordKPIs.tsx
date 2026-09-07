@@ -43,12 +43,12 @@ export function LandlordKPIs() {
   }, []);
 
   const summary = stats?.summary || {
-    total_tickets: 13,
-    active_tickets: 9,
-    resolved_tickets: 2,
-    hazard_tickets: 6,
-    sla_compliance_percent: 94.2,
-    mttr_hours: 14.7,
+    total_tickets: 0,
+    active_tickets: 0,
+    resolved_tickets: 0,
+    hazard_tickets: 0,
+    sla_compliance_percent: 100,
+    mttr_hours: 0,
   };
 
   return (

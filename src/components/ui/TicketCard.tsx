@@ -66,7 +66,7 @@ export function TicketCard({
       <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mt-3 pt-2 border-t border-[var(--border)]">
         <div>
           <span className="font-semibold text-[var(--foreground)]">
-            {locale === "ar" ? "الوحدة:" : "Unit:"} {ticket.unit_number || "101"}
+            {locale === "ar" ? "الوحدة:" : "Unit:"} {ticket.unit_number || "-"}
           </span>
           <span className="mx-1.5">•</span>
           <span>{locale === "ar" ? ticket.trade_ar || ticket.trade_id : ticket.trade_en || ticket.trade_id}</span>
