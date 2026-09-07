@@ -40,13 +40,33 @@ export function WorkOrderSlip({
 }) {
   React.useEffect(() => {
     document.body.classList.add("modal-open-for-print");
+    const originalTitle = document.title;
+
+    const handleBeforePrint = () => {
+      document.title = "";
+    };
+    const handleAfterPrint = () => {
+      document.title = originalTitle;
+    };
+
+    window.addEventListener("beforeprint", handleBeforePrint);
+    window.addEventListener("afterprint", handleAfterPrint);
+
     return () => {
       document.body.classList.remove("modal-open-for-print");
+      window.removeEventListener("beforeprint", handleBeforePrint);
+      window.removeEventListener("afterprint", handleAfterPrint);
+      document.title = originalTitle;
     };
   }, []);
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = "";
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   };
 
   const tradeName = ticket.trade_ar || ticket.trade_en || "أعمال الصيانة";
@@ -84,7 +104,7 @@ export function WorkOrderSlip({
         </div>
 
         {/* Printable Document Body (A4 Paged Layout) */}
-        <div className="overflow-y-auto p-6 sm:p-8 space-y-4 dir-rtl bg-white text-slate-900 font-sans print:p-0 print:overflow-visible printable-document">
+        <div className="overflow-y-auto p-6 sm:p-8 space-y-4 dir-rtl bg-white text-slate-900 font-sans print:overflow-visible printable-document">
           {/* Document Header */}
           <div className="border-b-2 border-slate-900 pb-3 flex items-start justify-between">
             <div>

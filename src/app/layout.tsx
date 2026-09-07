@@ -10,8 +10,8 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: "Home Faults Report System | نظام الإبلاغ عن أعطال المنازل",
-  description: "Bilingual Egyptian Residential Maintenance & Fault Reporting System",
+  title: "نظام إدارة وصيانة المنزل",
+  description: "Residential Maintenance & Operations Portal",
   icons: {
     icon: "/favicon.ico",
   },
