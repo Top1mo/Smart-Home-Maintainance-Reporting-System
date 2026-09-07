@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n/context";
+import { useToast } from "@/components/ui/Toast";
 import { TicketCard } from "@/components/ui/TicketCard";
 import {
   Phone,
@@ -33,6 +34,7 @@ import { PunchListReport } from "@/components/pdf/PunchListReport";
 
 export function DispatcherTriage() {
   const { locale, direction, t } = useI18n();
+  const toast = useToast();
 
   const [tickets, setTickets] = useState<any[]>([]);
   const [contractors, setContractors] = useState<any[]>([]);
@@ -143,13 +145,16 @@ export function DispatcherTriage() {
         setSelectedTicketId(newTicket.id);
         setIsMobileDetailOpen(true);
       }
-      alert(
-        locale === "ar"
-          ? `تم إعادة نشر البلاغ بنجاح برقم مرجعي جديد: ${newTicket?.reference_no || newTicket?.id}`
-          : `Ticket successfully republished with reference: ${newTicket?.reference_no || newTicket?.id}`
-      );
+      toast.show({
+        type: "success",
+        title: locale === "ar" ? "تم إعادة نشر البلاغ بنجاح" : "Ticket successfully republished",
+        message: `${locale === "ar" ? "رقم مرجعي: " : "Reference: "}${newTicket?.reference_no || newTicket?.id}`,
+      });
     } catch (err: any) {
-      alert(err.message || "Failed to republish ticket");
+      toast.show({
+        type: "error",
+        title: err.message || (locale === "ar" ? "فشل إعادة نشر البلاغ" : "Failed to republish ticket"),
+      });
     } finally {
       setRepublishing(false);
     }
@@ -184,9 +189,15 @@ export function DispatcherTriage() {
       setTickets((prev) =>
         prev.map((t) => (t.id === activeTicket.id ? { ...t, ...data.ticket } : t))
       );
-      alert(locale === "ar" ? "تم حفظ تحديث قطع الغيار بنجاح" : "Parts status updated successfully");
+      toast.show({
+        type: "success",
+        title: locale === "ar" ? "تم حفظ تحديث قطع الغيار بنجاح" : "Parts status updated successfully",
+      });
     } catch (err: any) {
-      alert(err.message || "Failed to update parts");
+      toast.show({
+        type: "error",
+        title: err.message || (locale === "ar" ? "فشل تحديث قطع الغيار" : "Failed to update parts"),
+      });
     } finally {
       setSavingParts(false);
     }
@@ -252,8 +263,15 @@ export function DispatcherTriage() {
       await fetchTickets();
       setActionModal(null);
       setActionNotes("");
+      toast.show({
+        type: "success",
+        title: locale === "ar" ? "تم تحديث حالة البلاغ بنجاح" : "Status updated successfully",
+      });
     } catch (err: any) {
-      alert(err.message || "Failed to update status");
+      toast.show({
+        type: "error",
+        title: err.message || (locale === "ar" ? "فشل تحديث حالة البلاغ" : "Failed to update status"),
+      });
     } finally {
       setActionLoading(false);
     }
@@ -297,7 +315,7 @@ export function DispatcherTriage() {
                   type="button"
                   onClick={() => handleRepublishTicket(ticket.id)}
                   disabled={republishing}
-                  className="tactile-button px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                  className="tactile-button min-h-[44px] px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
                   title={locale === "ar" ? "إعادة نشر وتفعيل البلاغ في قائمة المتابعة" : "Republish Ticket to Active Queue"}
                 >
                   <RotateCcw className={`w-3.5 h-3.5 ${republishing ? "animate-spin" : ""}`} />
@@ -308,7 +326,7 @@ export function DispatcherTriage() {
               <button
                 type="button"
                 onClick={() => setPrintTicket(ticket)}
-                className="tactile-button px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="tactile-button min-h-[44px] px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                 title={locale === "ar" ? "طباعة أمر الشغل أو حفظ PDF" : "Print Work Order Slip (PDF)"}
               >
                 <Printer className="w-3.5 h-3.5 text-sky-400" />
@@ -403,7 +421,7 @@ export function DispatcherTriage() {
                   type="button"
                   onClick={handleSavePartsNeeded}
                   disabled={savingParts}
-                  className="tactile-button px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                  className="tactile-button min-h-[44px] px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>{savingParts ? (locale === "ar" ? "جاري الحفظ..." : "Saving...") : (locale === "ar" ? "حفظ تحديث قطع الغيار" : "Save Parts Status")}</span>
@@ -418,7 +436,7 @@ export function DispatcherTriage() {
                 type="button"
                 onClick={handleSavePartsNeeded}
                 disabled={savingParts}
-                className="tactile-button px-3 py-1 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-50"
+                className="tactile-button min-h-[44px] px-3.5 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-50 flex items-center justify-center"
               >
                 <span>{savingParts ? (locale === "ar" ? "جاري التحديث..." : "Updating...") : (locale === "ar" ? "إلغاء طلب قطع الغيار" : "Clear Parts Needed")}</span>
               </button>
@@ -453,7 +471,7 @@ export function DispatcherTriage() {
                 type="button"
                 onClick={() => handleRepublishTicket(ticket.id)}
                 disabled={republishing}
-                className="tactile-button px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+                className="tactile-button min-h-[44px] px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
               >
                 <RotateCcw className={`w-4 h-4 ${republishing ? "animate-spin" : ""}`} />
                 <span>
@@ -478,7 +496,7 @@ export function DispatcherTriage() {
                   <button
                     key={nextStatus}
                     onClick={() => setActionModal({ targetStatus: nextStatus, ticketId: ticket.id })}
-                    className={`tactile-button px-3.5 py-2 text-xs font-bold rounded-lg transition-all shadow-sm cursor-pointer ${
+                    className={`tactile-button min-h-[44px] px-3.5 py-2 text-xs font-bold rounded-lg transition-all shadow-sm cursor-pointer flex items-center justify-center ${
                       isReject
                         ? "bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/30"
                         : isAdvance
@@ -518,7 +536,7 @@ export function DispatcherTriage() {
           <button
             type="button"
             onClick={() => handleTabChange("active")}
-            className={`px-3 py-2 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
+            className={`px-3 py-2 min-h-[44px] rounded-lg transition-all flex items-center gap-2 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
               activeSubTab === "active"
                 ? "bg-[var(--card)] text-sky-600 dark:text-sky-400 shadow-sm font-bold"
                 : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
@@ -538,7 +556,7 @@ export function DispatcherTriage() {
           <button
             type="button"
             onClick={() => handleTabChange("archive")}
-            className={`px-3 py-2 rounded-lg transition-all flex items-center gap-2 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
+            className={`px-3 py-2 min-h-[44px] rounded-lg transition-all flex items-center gap-2 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
               activeSubTab === "archive"
                 ? "bg-[var(--card)] text-amber-600 dark:text-amber-400 shadow-sm font-bold"
                 : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
@@ -558,7 +576,7 @@ export function DispatcherTriage() {
           <button
             type="button"
             onClick={() => handleTabChange("punch_list")}
-            className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
+            className={`px-3 py-2 min-h-[44px] rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
               activeSubTab === "punch_list"
                 ? "bg-[var(--card)] text-indigo-600 dark:text-indigo-400 shadow-sm font-bold"
                 : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
@@ -588,14 +606,14 @@ export function DispatcherTriage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t("action_search")}
-                  className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] w-48 sm:w-64"
+                  className="px-3 py-2 min-h-[44px] text-xs rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] w-48 sm:w-64"
                 />
 
                 {/* Status Filter */}
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                  className="px-2.5 py-2 min-h-[44px] text-xs rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 >
                   <option value="ALL">
                     {locale === "ar"
@@ -629,13 +647,60 @@ export function DispatcherTriage() {
               {locale === "ar" ? "جاري تحميل البلاغات..." : "Loading triage queue..."}
             </div>
           ) : filteredTickets.length === 0 ? (
-            <div className="tactile-card p-8 text-center text-xs text-[var(--muted-foreground)]">
-              {locale === "ar"
-                ? activeSubTab === "archive"
-                  ? "لا توجد بلاغات منتهية أو مؤرشفة تطابق البحث"
-                  : "لا توجد بلاغات جارية تطابق البحث"
-                : "No tickets match your filters"}
-            </div>
+            activeSubTab === "archive" ? (
+              <div className="tactile-card p-6 sm:p-8 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+                  <Archive className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-[var(--foreground)]">
+                    {locale === "ar" ? "سجل الأرشيف فارغ" : "Archive is Empty"}
+                  </h3>
+                  <p className="text-xs text-[var(--muted-foreground)] mt-1 max-w-xs mx-auto leading-relaxed">
+                    {locale === "ar"
+                      ? "لم يتم أرشفة أو إنهاء أي بلاغات بعد، أو لا توجد نتائج مطابقة لمحددات البحث في سجل الأرشيف."
+                      : "No completed or archived tickets yet, or no tickets match the filters."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("active")}
+                  className="tactile-button min-h-[44px] px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer inline-flex items-center justify-center gap-1.5"
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>{locale === "ar" ? "العودة إلى البلاغات الجارية" : "Switch to Active Queue"}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="tactile-card p-6 sm:p-8 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-sky-500/15 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-[var(--foreground)]">
+                    {locale === "ar" ? "لا توجد بلاغات معلقة حالياً" : "No Active Tickets in Queue"}
+                  </h3>
+                  <p className="text-xs text-[var(--muted-foreground)] mt-1 max-w-xs mx-auto leading-relaxed">
+                    {locale === "ar"
+                      ? "جميع بلاغات الصيانة تمت معالجتها أو لا توجد بلاغات تطابق معايير التصفية والبحث الحالية."
+                      : "All maintenance tickets have been processed or no tickets match current filters."}
+                  </p>
+                </div>
+                {(searchQuery || filterStatus !== "ALL") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setFilterStatus("ALL");
+                    }}
+                    className="tactile-button min-h-[44px] px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer inline-flex items-center justify-center gap-1.5"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>{locale === "ar" ? "إعادة ضبط التصفية" : "Reset Filters"}</span>
+                  </button>
+                )}
+              </div>
+            )
           ) : (
             filteredTickets.map((t) => (
               <TicketCard
@@ -658,8 +723,20 @@ export function DispatcherTriage() {
               {renderTicketDetailContent(activeTicket, false)}
             </div>
           ) : (
-            <div className="tactile-card p-12 text-center text-xs text-[var(--muted-foreground)]">
-              {locale === "ar" ? "اختر بلاغاً من القائمة لمعاينته" : "Select a ticket from queue to inspect"}
+            <div className="tactile-card p-8 sm:p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-[var(--muted)] text-[var(--muted-foreground)] flex items-center justify-center mx-auto border border-[var(--border)]">
+                <FileText className="w-6 h-6 text-sky-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-[var(--foreground)]">
+                  {locale === "ar" ? "لم يتم تحديد بلاغ" : "No Ticket Selected"}
+                </h3>
+                <p className="text-xs text-[var(--muted-foreground)] mt-1 max-w-sm mx-auto leading-relaxed">
+                  {locale === "ar"
+                    ? "اختر بلاغاً أو اضغط على أي بلاغ من القائمة الجانبية لعرض كامل التفاصيل وإجراءات المتابعة."
+                    : "Select a ticket from the list to view its complete details and lifecycle actions."}
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -676,7 +753,7 @@ export function DispatcherTriage() {
               <button
                 type="button"
                 onClick={() => setIsMobileDetailOpen(false)}
-                className="p-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] cursor-pointer transition-colors"
+                className="p-2.5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] cursor-pointer transition-colors"
                 aria-label={locale === "ar" ? "إغلاق" : "Close"}
               >
                 <X className="w-5 h-5" />
@@ -768,14 +845,14 @@ export function DispatcherTriage() {
             <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
               <button
                 onClick={() => setActionModal(null)}
-                className="tactile-button px-4 py-2 text-xs border border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] font-semibold"
+                className="tactile-button min-h-[44px] px-4 py-2 text-xs border border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] font-semibold flex items-center justify-center cursor-pointer"
               >
                 {t("action_cancel")}
               </button>
               <button
                 onClick={handleExecuteTransition}
                 disabled={actionLoading}
-                className="tactile-button px-5 py-2 text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold shadow-md"
+                className="tactile-button min-h-[44px] px-5 py-2 text-xs bg-sky-600 hover:bg-sky-700 text-white font-bold shadow-md flex items-center justify-center cursor-pointer disabled:opacity-50"
               >
                 {actionLoading ? t("action_submitting") : t("action_next")}
               </button>

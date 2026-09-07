@@ -1,8 +1,23 @@
 import type { NextConfig } from "next";
+import fs from "node:fs";
+import path from "node:path";
+import { execSync } from "node:child_process";
+
+// Ensure start.sh has executable permissions (0755) and passes syntax check
+const startScript = path.join(process.cwd(), "start.sh");
+if (fs.existsSync(startScript)) {
+  try {
+    fs.chmodSync(startScript, 0o755);
+    execSync(`bash -n "${startScript}"`);
+  } catch {
+    // ignore in environments without bash
+  }
+}
 
 const nextConfig: NextConfig = {
   // Prevent Turbopack/Webpack from bundling Node's native C++ SQLite module into client chunks
   serverExternalPackages: ["node:sqlite"],
+  output: "standalone",
   // Allow base64 data URLs in images if using Next Image
   images: {
     unoptimized: true,
@@ -11,10 +26,14 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     "192.168.1.55",
     "192.168.1.55:3000",
+    "192.168.43.1",
+    "192.168.43.1:3000",
     "localhost",
     "localhost:3000",
     "127.0.0.1",
     "127.0.0.1:3000",
+    "0.0.0.0",
+    "0.0.0.0:3000",
   ],
 };
 

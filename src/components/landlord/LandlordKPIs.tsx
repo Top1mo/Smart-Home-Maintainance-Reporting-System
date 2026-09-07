@@ -56,7 +56,7 @@ export function LandlordKPIs() {
         <button
           type="button"
           onClick={() => setActiveTab("analytics")}
-          className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
+          className={`px-3 py-2 min-h-[44px] rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
             activeTab === "analytics"
               ? "bg-[var(--card)] text-sky-600 dark:text-sky-400 shadow-sm font-bold"
               : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
@@ -69,7 +69,7 @@ export function LandlordKPIs() {
         <button
           type="button"
           onClick={() => setActiveTab("punch_list")}
-          className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
+          className={`px-3 py-2 min-h-[44px] rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
             activeTab === "punch_list"
               ? "bg-[var(--card)] text-indigo-600 dark:text-indigo-400 shadow-sm font-bold"
               : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
@@ -82,7 +82,7 @@ export function LandlordKPIs() {
         <button
           type="button"
           onClick={() => setActiveTab("manage_units")}
-          className={`px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
+          className={`px-3 py-2 min-h-[44px] rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap touch-manipulation cursor-pointer active:scale-95 ${
             activeTab === "manage_units"
               ? "bg-[var(--card)] text-amber-600 dark:text-amber-400 shadow-sm font-bold"
               : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
@@ -159,22 +159,38 @@ export function LandlordKPIs() {
                 <span>{locale === "ar" ? "توزيع الأعطال حسب التخصصات:" : "Fault Distribution by Trade:"}</span>
               </h3>
               <div className="space-y-3">
-                {stats?.trade_distribution?.map((td: any) => (
-                  <div key={td.trade_id} className="space-y-1 text-xs">
-                    <div className="flex justify-between font-semibold">
-                      <span>{locale === "ar" ? td.name_ar : td.name_en}</span>
-                      <span className="text-[var(--muted-foreground)] font-mono">
-                        {td.count} ({td.percentage}%)
-                      </span>
+                {!stats?.trade_distribution || stats.trade_distribution.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-[var(--muted-foreground)] space-y-2 border border-dashed border-[var(--border)] rounded-xl">
+                    <div className="w-10 h-10 rounded-full bg-sky-500/10 text-sky-500 flex items-center justify-center mx-auto">
+                      <BarChart3 className="w-5 h-5" />
                     </div>
-                    <div className="w-full bg-[var(--muted)] h-2 rounded-full overflow-hidden">
-                      <div
-                        className="bg-sky-500 h-full rounded-full transition-all"
-                        style={{ width: `${Math.max(5, td.percentage)}%` }}
-                      />
+                    <div className="font-bold text-[var(--foreground)]">
+                      {locale === "ar" ? "لا توجد بيانات كافية لعرض التوزيع" : "No Tickets Recorded"}
                     </div>
+                    <p className="text-[11px] leading-relaxed">
+                      {locale === "ar"
+                        ? "لا توجد بيانات كافية لعرض التوزيع - ستظهر الإحصائيات فور تسجيل أول بلاغ صيانة."
+                        : "Statistical breakdown will appear here once maintenance tickets are submitted."}
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  stats.trade_distribution.map((td: any) => (
+                    <div key={td.trade_id} className="space-y-1 text-xs">
+                      <div className="flex justify-between font-semibold">
+                        <span>{locale === "ar" ? td.name_ar : td.name_en}</span>
+                        <span className="text-[var(--muted-foreground)] font-mono">
+                          {td.count} ({td.percentage}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-[var(--muted)] h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-sky-500 h-full rounded-full transition-all"
+                          style={{ width: `${Math.max(5, td.percentage)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -184,20 +200,36 @@ export function LandlordKPIs() {
                 <span>{locale === "ar" ? "مسار معالجة البلاغات:" : "Lifecycle Funnel:"}</span>
               </h3>
               <div className="space-y-3">
-                {stats?.status_funnel?.map((sf: any) => (
-                  <div key={sf.status} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--card)] flex items-center justify-between text-xs">
-                    <div>
-                      <div className="font-bold text-[var(--foreground)]">
-                        {locale === "ar" ? sf.label_ar : sf.label_en}
-                      </div>
-                      <span className="font-mono text-[10px] text-[var(--muted-foreground)]">{sf.status}</span>
+                {!stats?.status_funnel || stats.status_funnel.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-[var(--muted-foreground)] space-y-2 border border-dashed border-[var(--border)] rounded-xl">
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+                      <TrendingUp className="w-5 h-5" />
                     </div>
-                    <div className="text-end">
-                      <span className="font-black text-sm text-[var(--foreground)]">{sf.count}</span>
-                      <span className="text-[10px] text-[var(--muted-foreground)] block">{sf.percentage}%</span>
+                    <div className="font-bold text-[var(--foreground)]">
+                      {locale === "ar" ? "المسار خالٍ من البلاغات" : "Funnel is Empty"}
                     </div>
+                    <p className="text-[11px] leading-relaxed">
+                      {locale === "ar"
+                        ? "لا توجد بلاغات جارية في دورة المعالجة حالياً."
+                        : "No tickets are currently moving through the resolution lifecycle."}
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  stats.status_funnel.map((sf: any) => (
+                    <div key={sf.status} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--card)] flex items-center justify-between text-xs">
+                      <div>
+                        <div className="font-bold text-[var(--foreground)]">
+                          {locale === "ar" ? sf.label_ar : sf.label_en}
+                        </div>
+                        <span className="font-mono text-[10px] text-[var(--muted-foreground)]">{sf.status}</span>
+                      </div>
+                      <div className="text-end">
+                        <span className="font-black text-sm text-[var(--foreground)]">{sf.count}</span>
+                        <span className="text-[10px] text-[var(--muted-foreground)] block">{sf.percentage}%</span>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

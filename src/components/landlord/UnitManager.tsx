@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n/context";
+import { useToast } from "@/components/ui/Toast";
 import {
   Building,
   Plus,
@@ -35,6 +36,7 @@ const DEFAULT_ROOMS = [
 
 export function UnitManager() {
   const { locale } = useI18n();
+  const toast = useToast();
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>("");
@@ -142,8 +144,15 @@ export function UnitManager() {
 
       await fetchUnits();
       setIsFormOpen(false);
+      toast.show({
+        type: "success",
+        title: locale === "ar" ? "تم حفظ بيانات الوحدة بنجاح" : "Unit saved successfully",
+      });
     } catch (err: any) {
-      alert(err.message || "Error saving unit");
+      toast.show({
+        type: "error",
+        title: err.message || (locale === "ar" ? "خطأ في حفظ بيانات الوحدة" : "Error saving unit"),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -171,13 +180,13 @@ export function UnitManager() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={locale === "ar" ? "بحث برقم الوحدة أو اسم الساكن..." : "Search unit or resident..."}
-            className="w-full px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+            className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
           />
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="tactile-button px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5"
+          className="tactile-button min-h-[44px] px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>{locale === "ar" ? "إضافة وحدة سكنية جديدة" : "Add New Unit"}</span>
@@ -191,9 +200,54 @@ export function UnitManager() {
             {locale === "ar" ? "جاري تحميل الوحدات..." : "Loading units..."}
           </div>
         ) : filteredUnits.length === 0 ? (
-          <div className="p-8 text-center text-xs text-[var(--muted-foreground)]">
-            {locale === "ar" ? "لا توجد وحدات مطابقة للبحث" : "No units found"}
-          </div>
+          units.length === 0 ? (
+            <div className="p-8 sm:p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                <Building className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-[var(--foreground)]">
+                  {locale === "ar" ? "لم يتم تسجيل أي وحدات سكنية بعد" : "No Registered Units Yet"}
+                </h3>
+                <p className="text-xs text-[var(--muted-foreground)] mt-1 max-w-sm mx-auto leading-relaxed">
+                  {locale === "ar"
+                    ? "لا توجد وحدات سكنية مسجلة حالياً - ابدأ بإضافة أول وحدة لتفعيل تسجيل الأعطال وإدارتها."
+                    : "No units found. Add the first residential unit to start logging and managing faults."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenAdd}
+                className="tactile-button min-h-[44px] px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm inline-flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{locale === "ar" ? "+ إضافة أول وحدة سكنية" : "+ Add First Unit"}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="p-8 sm:p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-[var(--muted)] text-[var(--muted-foreground)] flex items-center justify-center mx-auto border border-[var(--border)]">
+                <Search className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-[var(--foreground)]">
+                  {locale === "ar" ? "لا توجد وحدات مطابقة للبحث" : "No Units Match Your Search"}
+                </h3>
+                <p className="text-xs text-[var(--muted-foreground)] mt-1 max-w-xs mx-auto leading-relaxed">
+                  {locale === "ar"
+                    ? "لم يتم العثور على أي وحدة سكنية تطابق معايير البحث الحالية."
+                    : "Try adjusting your search criteria or clear the search input."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="tactile-button min-h-[44px] px-4 py-2 bg-[var(--muted)] hover:bg-[var(--border)] text-[var(--foreground)] text-xs font-semibold rounded-lg shadow-sm inline-flex items-center justify-center cursor-pointer border border-[var(--border)]"
+              >
+                <span>{locale === "ar" ? "إعادة ضبط البحث" : "Clear Search"}</span>
+              </button>
+            </div>
+          )
         ) : (
           <div className="divide-y divide-[var(--border)]">
             {filteredUnits.map((u) => (
@@ -249,11 +303,11 @@ export function UnitManager() {
 
                 <button
                   onClick={() => handleOpenEdit(u)}
-                  className="tactile-button p-2 text-xs border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)] rounded-lg text-[var(--foreground)] flex items-center gap-1"
+                  className="tactile-button min-w-[44px] min-h-[44px] p-2 text-xs border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)] rounded-lg text-[var(--foreground)] flex items-center justify-center gap-1 cursor-pointer"
                   title={locale === "ar" ? "تعديل بيانات الوحدة والساكن" : "Edit Unit & Resident"}
                 >
-                  <Edit2 className="w-3.5 h-3.5 text-sky-500" />
-                  <span className="text-[11px] hidden sm:inline">{locale === "ar" ? "تعديل" : "Edit"}</span>
+                  <Edit2 className="w-4 h-4 text-sky-500" />
+                  <span className="text-[11px] hidden sm:inline font-semibold">{locale === "ar" ? "تعديل" : "Edit"}</span>
                 </button>
               </div>
             ))}
@@ -277,9 +331,10 @@ export function UnitManager() {
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
-                className="p-1 text-[var(--muted-foreground)] hover:text-[var(--foreground)] rounded-lg"
+                className="p-2.5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] cursor-pointer transition-colors"
+                aria-label={locale === "ar" ? "إغلاق" : "Close"}
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -294,7 +349,7 @@ export function UnitManager() {
                   value={unitNumber}
                   onChange={(e) => setUnitNumber(e.target.value)}
                   placeholder={locale === "ar" ? "مثال: 12" : "e.g. 12"}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                  className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
               </div>
 
@@ -308,7 +363,7 @@ export function UnitManager() {
                   min={0}
                   value={floorNumber}
                   onChange={(e) => setFloorNumber(parseInt(e.target.value, 10) || 1)}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                  className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
               </div>
 
@@ -322,7 +377,7 @@ export function UnitManager() {
                   value={buildingName}
                   onChange={(e) => setBuildingName(e.target.value)}
                   placeholder={locale === "ar" ? "مثال: عمارة ٤ / برج الياسمين" : "e.g. Building 4 / Tower A"}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                  className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
               </div>
 
@@ -336,7 +391,7 @@ export function UnitManager() {
                   value={residentName}
                   onChange={(e) => setResidentName(e.target.value)}
                   placeholder={locale === "ar" ? "الاسم ثلاثي" : "Full Name"}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                  className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
               </div>
 
@@ -350,7 +405,7 @@ export function UnitManager() {
                   value={residentPhone}
                   onChange={(e) => setResidentPhone(e.target.value)}
                   placeholder={locale === "ar" ? "01xxxxxxxxx" : "+20 10xxxxxxxx"}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                  className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] dir-ltr text-right"
                 />
               </div>
 
@@ -387,10 +442,12 @@ export function UnitManager() {
                         <button
                           type="button"
                           onClick={() => handleRemoveRoom(r)}
-                          className="text-slate-400 hover:text-red-500 rounded-full p-0.5 cursor-pointer"
+                          className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-red-500 rounded-full cursor-pointer touch-manipulation"
                           title="حذف"
                         >
-                          <X className="w-3 h-3" />
+                          <span className="w-4 h-4 rounded-full hover:bg-red-500/20 flex items-center justify-center">
+                            <X className="w-3 h-3" />
+                          </span>
                         </button>
                       </span>
                     ))
@@ -402,7 +459,7 @@ export function UnitManager() {
                   <span className="text-[10px] font-semibold text-[var(--muted-foreground)] block">
                     {locale === "ar" ? "مقترحات سريعة للإضافة:" : "Quick Suggestions:"}
                   </span>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {[
                       "المطبخ",
                       "الحمام الرئيسي",
@@ -422,10 +479,10 @@ export function UnitManager() {
                           type="button"
                           disabled={isAdded}
                           onClick={() => handleQuickAddRoom(sug)}
-                          className={`text-[10px] px-2 py-0.5 rounded border transition-all cursor-pointer ${
+                          className={`min-h-[44px] text-xs px-3 py-2 rounded-lg border transition-all cursor-pointer inline-flex items-center justify-center touch-manipulation ${
                             isAdded
                               ? "opacity-40 border-transparent bg-transparent text-[var(--muted-foreground)] cursor-not-allowed"
-                              : "border-[var(--border)] bg-[var(--card)] hover:bg-sky-50 dark:hover:bg-sky-950 text-slate-700 dark:text-slate-300"
+                              : "border-[var(--border)] bg-[var(--card)] hover:bg-sky-50 dark:hover:bg-sky-950 text-slate-700 dark:text-slate-300 font-semibold"
                           }`}
                         >
                           + {sug}
@@ -436,7 +493,7 @@ export function UnitManager() {
                 </div>
 
                 {/* Custom Room Input */}
-                <div className="flex gap-1.5 pt-1">
+                <div className="flex gap-2 pt-1">
                   <input
                     type="text"
                     value={newRoomInput}
@@ -448,12 +505,12 @@ export function UnitManager() {
                       }
                     }}
                     placeholder={locale === "ar" ? "أو اكتب اسم مكان مخصص (مثال: غرفة المعيشة)..." : "Or type custom room..."}
-                    className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                    className="flex-1 px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                   />
                   <button
                     type="button"
                     onClick={handleAddRoom}
-                    className="tactile-button px-3 py-1.5 bg-[var(--muted)] hover:bg-[var(--border)] text-xs font-bold rounded-lg cursor-pointer"
+                    className="tactile-button min-h-[44px] min-w-[44px] px-4 py-2 bg-[var(--muted)] hover:bg-[var(--border)] text-xs font-bold rounded-lg cursor-pointer flex items-center justify-center"
                   >
                     {locale === "ar" ? "إضافة +" : "Add +"}
                   </button>
@@ -465,14 +522,14 @@ export function UnitManager() {
               <button
                 type="button"
                 onClick={() => setIsFormOpen(false)}
-                className="tactile-button px-4 py-2 text-xs border border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)]"
+                className="tactile-button min-h-[44px] px-4 py-2 text-xs border border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] font-semibold flex items-center justify-center cursor-pointer"
               >
                 {locale === "ar" ? "إلغاء" : "Cancel"}
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="tactile-button px-5 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md flex items-center gap-1.5"
+                className="tactile-button min-h-[44px] px-5 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <Check className="w-4 h-4" />
                 <span>{submitting ? (locale === "ar" ? "جاري الحفظ..." : "Saving...") : (locale === "ar" ? "حفظ البيانات" : "Save Unit")}</span>

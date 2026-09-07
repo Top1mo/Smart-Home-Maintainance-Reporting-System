@@ -76,7 +76,7 @@ export function TicketCard({
             {locale === "ar" ? "وحدة:" : "Unit:"} {ticket.unit_number || "-"}
           </span>
           {ticket.building_name && (
-            <span className="text-[11px] text-[var(--muted-foreground)] mr-1">
+            <span className="text-[11px] text-[var(--muted-foreground)] ms-1">
               ({ticket.building_name})
             </span>
           )}

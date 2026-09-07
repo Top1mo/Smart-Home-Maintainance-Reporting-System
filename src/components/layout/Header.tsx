@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useI18n, Locale } from "@/lib/i18n/context";
-import { Globe, Moon, Sun, Home, Shield, BarChart3 } from "lucide-react";
+import { Globe, Moon, Sun, Home, Shield, BarChart3, WifiOff } from "lucide-react";
 
 export function Header({
   activeRole,
@@ -13,6 +13,21 @@ export function Header({
 }) {
   const { locale, setLocale, t } = useI18n();
   const [isDark, setIsDark] = React.useState(false);
+  const [isOnline, setIsOnline] = React.useState(true);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsOnline(navigator.onLine);
+      const handleOnline = () => setIsOnline(true);
+      const handleOffline = () => setIsOnline(false);
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+      return () => {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      };
+    }
+  }, []);
 
   const toggleLanguage = () => {
     const nextLocale: Locale = locale === "ar" ? "en" : "ar";
@@ -33,20 +48,32 @@ export function Header({
 
   return (
     <>
+      {/* Offline Status Banner */}
+      {!isOnline && (
+        <div className="sticky top-0 z-50 bg-amber-500 text-white px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-md">
+          <WifiOff className="w-4 h-4 shrink-0" />
+          <span>
+            {locale === "ar"
+              ? "لا يوجد اتصال بالإنترنت — البيانات تحفظ محلياً على هاتفك"
+              : "No internet connection — Data is saved locally on your device"}
+          </span>
+        </div>
+      )}
+
       {/* Top Header */}
       <header className="sticky top-0 z-40 bg-[var(--card)]/95 backdrop-blur-md border-b border-[var(--border)]">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Clean Tactile Logo (No gradients, no emojis) */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-[var(--muted)] border border-[var(--border)] flex items-center justify-center text-[var(--foreground)]">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-[var(--muted)] border border-[var(--border)] flex items-center justify-center text-[var(--foreground)] shrink-0">
                 <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-sky-600 dark:text-sky-400" />
               </div>
-              <div>
-                <div className="font-bold text-sm sm:text-base leading-tight tracking-tight text-[var(--foreground)]">
+              <div className="min-w-0">
+                <div className="font-bold text-sm sm:text-base leading-tight tracking-tight text-[var(--foreground)] truncate max-w-[190px] xs:max-w-none">
                   {t("app_title")}
                 </div>
-                <div className="text-[10px] text-[var(--muted-foreground)] hidden sm:block">
+                <div className="text-[10px] text-[var(--muted-foreground)] hidden sm:block truncate">
                   {t("app_tagline")}
                 </div>
               </div>
@@ -90,11 +117,11 @@ export function Header({
             </nav>
 
             {/* Quick Controls */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={toggleLanguage}
-                className="tactile-button px-2.5 py-1.5 text-xs font-bold border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] rounded-lg flex items-center gap-1 shadow-sm touch-manipulation cursor-pointer"
+                className="tactile-button min-w-[44px] min-h-[44px] px-3 py-2 text-xs font-bold border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] rounded-lg flex items-center justify-center gap-1 shadow-sm touch-manipulation cursor-pointer"
                 title={locale === "ar" ? "Switch to English" : "التحويل للغة العربية"}
               >
                 <Globe className="w-3.5 h-3.5 text-sky-500" />
@@ -104,7 +131,7 @@ export function Header({
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="tactile-button p-2 text-xs border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] rounded-lg shadow-sm touch-manipulation cursor-pointer"
+                className="tactile-button min-w-[44px] min-h-[44px] p-2 text-xs border border-[var(--border)] bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] rounded-lg shadow-sm touch-manipulation cursor-pointer flex items-center justify-center"
                 title="Toggle Theme"
               >
                 {isDark ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-500" />}

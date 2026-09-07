@@ -90,14 +90,14 @@ export function WorkOrderSlip({
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="px-4 py-2 min-h-[44px] bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Download className="w-4 h-4" />
               <span>طباعة / تصدير PDF</span>
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+              className="p-2.5 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
               title="إغلاق"
             >
               <X className="w-5 h-5" />
@@ -161,7 +161,7 @@ export function WorkOrderSlip({
           )}
 
           {/* Unit & Ticket Data Table (Clean, Sharp Tabular Grid) */}
-          <div className="print-avoid-break">
+          <div className="overflow-x-auto print:overflow-visible print-avoid-break">
             <table className="w-full border-collapse border border-slate-400 text-xs">
               <tbody>
                 <tr className="border-b border-slate-300">
@@ -228,40 +228,42 @@ export function WorkOrderSlip({
 
             <div className="p-3 space-y-3 text-xs">
               {/* Materials & Cost Table */}
-              <table className="w-full border-collapse border border-slate-300 text-xs">
-                <thead>
-                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-800">
-                    <th className="p-1.5 text-center border-l border-slate-300 w-8">م</th>
-                    <th className="p-1.5 text-right border-l border-slate-300">بيان قطع الغيار والخامات المستخدمة</th>
-                    <th className="p-1.5 text-center border-l border-slate-300 w-16">الكمية</th>
-                    <th className="p-1.5 text-left border-l border-slate-300 w-24">سعر الوحدة (ج.م)</th>
-                    <th className="p-1.5 text-left w-24">الإجمالي (ج.م)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  <tr>
-                    <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">١</td>
-                    <td className="p-1.5 text-slate-400 border-l border-slate-300">...........................................................................</td>
-                    <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">.......</td>
-                    <td className="p-1.5 text-left text-slate-400 border-l border-slate-300">...........</td>
-                    <td className="p-1.5 text-left text-slate-400">...........</td>
-                  </tr>
-                  <tr>
-                    <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">٢</td>
-                    <td className="p-1.5 text-slate-400 border-l border-slate-300">...........................................................................</td>
-                    <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">.......</td>
-                    <td className="p-1.5 text-left text-slate-400 border-l border-slate-300">...........</td>
-                    <td className="p-1.5 text-left text-slate-400">...........</td>
-                  </tr>
-                  <tr>
-                    <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">٣</td>
-                    <td className="p-1.5 text-slate-400 border-l border-slate-300">...........................................................................</td>
-                    <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">.......</td>
-                    <td className="p-1.5 text-left border-l border-slate-300 text-slate-400">...........</td>
-                    <td className="p-1.5 text-left text-slate-400">...........</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div className="overflow-x-auto print:overflow-visible">
+                <table className="w-full border-collapse border border-slate-300 text-xs">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-300 text-slate-800">
+                      <th className="p-1.5 text-center border-l border-slate-300 w-8">م</th>
+                      <th className="p-1.5 text-right border-l border-slate-300">بيان قطع الغيار والخامات المستخدمة</th>
+                      <th className="p-1.5 text-center border-l border-slate-300 w-16">الكمية</th>
+                      <th className="p-1.5 text-left border-l border-slate-300 w-24">سعر الوحدة (ج.م)</th>
+                      <th className="p-1.5 text-left w-24">الإجمالي (ج.م)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    <tr>
+                      <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">١</td>
+                      <td className="p-1.5 text-slate-400 border-l border-slate-300">...........................................................................</td>
+                      <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">.......</td>
+                      <td className="p-1.5 text-left text-slate-400 border-l border-slate-300">...........</td>
+                      <td className="p-1.5 text-left text-slate-400">...........</td>
+                    </tr>
+                    <tr>
+                      <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">٢</td>
+                      <td className="p-1.5 text-slate-400 border-l border-slate-300">...........................................................................</td>
+                      <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">.......</td>
+                      <td className="p-1.5 text-left text-slate-400 border-l border-slate-300">...........</td>
+                      <td className="p-1.5 text-left text-slate-400">...........</td>
+                    </tr>
+                    <tr>
+                      <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">٣</td>
+                      <td className="p-1.5 text-slate-400 border-l border-slate-300">...........................................................................</td>
+                      <td className="p-1.5 text-center text-slate-400 border-l border-slate-300">.......</td>
+                      <td className="p-1.5 text-left border-l border-slate-300 text-slate-400">...........</td>
+                      <td className="p-1.5 text-left text-slate-400">...........</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
               {/* Total Quotation Summary */}
               <div className="grid grid-cols-2 gap-3 pt-1">

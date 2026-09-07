@@ -197,6 +197,9 @@ export function getDb(dbPath?: string): DatabaseSync {
   }
   db.exec('PRAGMA synchronous = NORMAL;');
   db.exec('PRAGMA busy_timeout = 5000;');
+  db.exec('PRAGMA cache_size = -2000;');
+  db.exec('PRAGMA mmap_size = 0;');
+  db.exec('PRAGMA temp_store = MEMORY;');
 
   // Initialize schema
   db.exec(SCHEMA_SQL);
@@ -238,6 +241,8 @@ export function getDb(dbPath?: string): DatabaseSync {
   }
   return db;
 }
+
+export const initDatabase = getDb;
 
 export function closeDb(): void {
   if (globalThis.__homeFaultsDb) {

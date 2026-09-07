@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n/context";
+import { useToast } from "@/components/ui/Toast";
 import {
   Wrench,
   Zap,
@@ -26,6 +27,31 @@ import {
   Printer,
 } from "lucide-react";
 import { WorkOrderSlip } from "@/components/pdf/WorkOrderSlip";
+
+export const DRAFT_STORAGE_KEY = "home_faults_wizard_draft_v1";
+
+export function calculateDownscaledDimensions(
+  srcWidth: number,
+  srcHeight: number,
+  maxDimension: number = 1200
+): { width: number; height: number; scaled: boolean } {
+  if (srcWidth <= maxDimension && srcHeight <= maxDimension) {
+    return { width: srcWidth, height: srcHeight, scaled: false };
+  }
+  const ratio = srcWidth / srcHeight;
+  let targetWidth = srcWidth;
+  let targetHeight = srcHeight;
+
+  if (srcWidth > srcHeight) {
+    targetWidth = maxDimension;
+    targetHeight = Math.round(maxDimension / ratio);
+  } else {
+    targetHeight = maxDimension;
+    targetWidth = Math.round(maxDimension * ratio);
+  }
+
+  return { width: targetWidth, height: targetHeight, scaled: true };
+}
 
 interface Trade {
   id: string;
@@ -76,12 +102,14 @@ export function ResidentWizard({
   isLandlordMode?: boolean;
 }) {
   const { locale, direction, t } = useI18n();
+  const toast = useToast();
 
   // Stepper State (1: Trade, 2: Subcategory & Symptom, 3: Unit & Photo, 4: Success)
   const [step, setStep] = useState<number>(1);
   const [trades, setTrades] = useState<Trade[]>(FALLBACK_TRADES);
   const [units, setUnits] = useState<any[]>([]);
   const [loadingTrades, setLoadingTrades] = useState<boolean>(false);
+  const [isDraftLoaded, setIsDraftLoaded] = useState<boolean>(false);
 
   // Form selections
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
@@ -114,6 +142,133 @@ export function ResidentWizard({
   const [createdTicket, setCreatedTicket] = useState<any | null>(null);
   const [showWorkOrderSlip, setShowWorkOrderSlip] = useState<boolean>(false);
 
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const rawJson = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (rawJson) {
+        const parsed = JSON.parse(rawJson);
+        if (parsed && typeof parsed === "object" && typeof parsed.timestamp === "number") {
+          const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+          if (Date.now() - parsed.timestamp <= sevenDaysMs) {
+            if (parsed.unitId) setSelectedUnitId(parsed.unitId);
+            if (parsed.unitNumber) setUnitNumber(parsed.unitNumber);
+            if (parsed.buildingName) setBuildingName(parsed.buildingName);
+            if (parsed.residentName) setResidentName(parsed.residentName);
+            if (parsed.residentPhone) setResidentPhone(parsed.residentPhone);
+            if (parsed.location) {
+              setRoomLocation(parsed.location);
+              if (parsed.isOtherRoom) {
+                setIsOtherRoom(true);
+                setCustomRoomText(parsed.customRoomText || parsed.location);
+              }
+            }
+            if (parsed.description) setDescription(parsed.description);
+            if (parsed.urgency) setUrgency(parsed.urgency);
+            if (Array.isArray(parsed.photos)) setPhotos(parsed.photos);
+            if (parsed.customSymptomText) setCustomSymptomText(parsed.customSymptomText);
+            if (parsed.faultDetailText) setFaultDetailText(parsed.faultDetailText);
+            if (parsed.isOtherSymptom) {
+              setIsOtherSymptom(true);
+              setSelectedSymptom({
+                id: "sym_other_custom",
+                symptom_en: parsed.customSymptomText || "Other Custom Fault",
+                symptom_ar: parsed.customSymptomText || "عطل آخر غير مدرج",
+                default_severity: "MEDIUM",
+                is_hazard: false,
+              });
+            }
+
+            // Restore trade / subcategory / symptom if tradeId present
+            if (parsed.tradeId) {
+              const trade = FALLBACK_TRADES.find((t) => t.id === parsed.tradeId);
+              if (trade) {
+                setSelectedTrade(trade);
+                if (parsed.subcategoryId) {
+                  const sub = trade.subcategories?.find((s) => s.id === parsed.subcategoryId);
+                  if (sub) {
+                    setSelectedSubcategory(sub);
+                    if (parsed.symptomId && !parsed.isOtherSymptom) {
+                      const sym = sub.symptoms?.find((sm) => sm.id === parsed.symptomId);
+                      if (sym) setSelectedSymptom(sym);
+                    }
+                  }
+                }
+              }
+            }
+
+            if (parsed.step && parsed.step >= 1 && parsed.step <= 3) {
+              setStep(parsed.step);
+            }
+          } else {
+            localStorage.removeItem(DRAFT_STORAGE_KEY);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to restore wizard draft:", e);
+    } finally {
+      setIsDraftLoaded(true);
+    }
+  }, []);
+
+  // Debounced auto-save draft to localStorage whenever relevant state changes and step < 4
+  useEffect(() => {
+    if (!isDraftLoaded || typeof window === "undefined" || step >= 4) return;
+
+    const timer = setTimeout(() => {
+      try {
+        const draft = {
+          unitId: selectedUnitId || "",
+          unitNumber: unitNumber || "",
+          buildingName: buildingName || "",
+          residentName: residentName || "",
+          residentPhone: residentPhone || "",
+          tradeId: selectedTrade?.id || "",
+          subcategoryId: selectedSubcategory?.id || "",
+          symptomId: selectedSymptom?.id || "",
+          location: (isOtherRoom ? customRoomText : roomLocation) || "",
+          description: description || "",
+          urgency: urgency || "NORMAL",
+          photos: photos || [],
+          step: step,
+          isOtherSymptom,
+          customSymptomText,
+          faultDetailText,
+          isOtherRoom,
+          customRoomText,
+          timestamp: Date.now(),
+        };
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      } catch (e) {
+        console.warn("Failed to auto-save draft:", e);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [
+    isDraftLoaded,
+    step,
+    selectedUnitId,
+    unitNumber,
+    buildingName,
+    residentName,
+    residentPhone,
+    selectedTrade,
+    selectedSubcategory,
+    selectedSymptom,
+    isOtherRoom,
+    customRoomText,
+    roomLocation,
+    description,
+    urgency,
+    photos,
+    isOtherSymptom,
+    customSymptomText,
+    faultDetailText,
+  ]);
+
   // Fetch live trades and units in background without blocking UI
   useEffect(() => {
     let isMounted = true;
@@ -136,17 +291,13 @@ export function ResidentWizard({
           if (isMounted && unitsData.units && unitsData.units.length > 0) {
             setUnits(unitsData.units);
             const u = unitsData.units[0];
-            setSelectedUnitId(u.id);
-            setUnitNumber(u.unit_number);
-            setBuildingName(u.building_name);
-            if (!isLandlordMode) {
-              if (u.resident_name) setResidentName(u.resident_name);
-              if (u.resident_phone) setResidentPhone(u.resident_phone);
-            }
+            setSelectedUnitId((prev) => prev || u.id);
+            setUnitNumber((prev) => prev || u.unit_number);
+            setBuildingName((prev) => prev || u.building_name);
             const uRooms = Array.isArray(u.rooms) && u.rooms.length > 0
               ? u.rooms
               : ["المطبخ", "الحمام الرئيسي", "الريسبشن / الصالة", "غرفة النوم الرئيسية", "البلكونة"];
-            setRoomLocation(uRooms[0] || "");
+            setRoomLocation((prev) => prev || (uRooms[0] || ""));
           }
         }
       } catch (err) {
@@ -166,10 +317,6 @@ export function ResidentWizard({
     if (u) {
       setUnitNumber(u.unit_number);
       setBuildingName(u.building_name);
-      if (!isLandlordMode) {
-        if (u.resident_name) setResidentName(u.resident_name);
-        if (u.resident_phone) setResidentPhone(u.resident_phone);
-      }
       const uRooms: string[] = Array.isArray(u.rooms) && u.rooms.length > 0
         ? u.rooms
         : ["المطبخ", "الحمام الرئيسي", "الريسبشن / الصالة", "غرفة النوم الرئيسية", "البلكونة"];
@@ -206,18 +353,43 @@ export function ResidentWizard({
     });
   };
 
-  // Photo upload
+  // Photo upload with canvas downscaling (max 1200px, 0.75 quality JPEG)
   const handleAddPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const file = files[0];
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === "string") {
-        setPhotos((prev) => [...prev, reader.result as string]);
-      }
-    };
-    reader.readAsDataURL(file);
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === "string") {
+          const rawData = reader.result;
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const { width, height } = calculateDownscaledDimensions(img.width, img.height, 1200);
+              const canvas = document.createElement("canvas");
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                const downscaled = canvas.toDataURL("image/jpeg", 0.75);
+                setPhotos((prev) => [...prev, downscaled]);
+              } else {
+                setPhotos((prev) => [...prev, rawData]);
+              }
+            } catch {
+              setPhotos((prev) => [...prev, rawData]);
+            }
+          };
+          img.onerror = () => {
+            setPhotos((prev) => [...prev, rawData]);
+          };
+          img.src = rawData;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
   };
 
   const handleRemovePhoto = (index: number) => {
@@ -267,24 +439,45 @@ export function ResidentWizard({
       if (!res.ok) throw new Error("Failed to submit ticket");
 
       const data = await res.json();
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        }
+      } catch (e) {}
+
       setCreatedTicket(data.ticket);
       setStep(4);
+      toast.show({
+        type: "success",
+        title: locale === "ar" ? "تم تسجيل البلاغ بنجاح" : "Ticket submitted successfully",
+        message: `${locale === "ar" ? "رقم البلاغ: " : "Reference: "}${data.ticket.reference_no || data.ticket.id}`,
+      });
       if (onTicketCreated) onTicketCreated(data.ticket.id);
     } catch (err) {
       console.error(err);
-      alert(locale === "ar" ? "حدث خطأ أثناء إرسال البلاغ" : "Failed to submit ticket");
+      toast.show({
+        type: "error",
+        title: locale === "ar" ? "حدث خطأ أثناء إرسال البلاغ" : "Failed to submit ticket",
+        message: locale === "ar" ? "تم الاحتفاظ ببيانات البلاغ لتتمكن من إعادة المحاولة." : "Your draft has been preserved so you can retry.",
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
   const resetForm = () => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+      }
+    } catch (e) {}
     setStep(1);
     setSelectedTrade(null);
     setSelectedSubcategory(null);
     setSelectedSymptom(null);
     setIsOtherSymptom(false);
     setCustomSymptomText("");
+    setFaultDetailText("");
     setIsOtherRoom(false);
     setCustomRoomText("");
     setDescription("");
@@ -441,7 +634,7 @@ export function ResidentWizard({
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] font-semibold p-2 touch-manipulation cursor-pointer"
+              className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] font-semibold min-h-[44px] min-w-[44px] px-3 py-2.5 flex items-center justify-center rounded-lg hover:bg-[var(--muted)] touch-manipulation cursor-pointer"
             >
               {t("action_back")}
             </button>
@@ -464,7 +657,7 @@ export function ResidentWizard({
                       setSelectedSymptom(null);
                       setIsOtherSymptom(false);
                     }}
-                    className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 touch-manipulation cursor-pointer ${
+                    className={`min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 touch-manipulation cursor-pointer ${
                       isSelected
                         ? "bg-sky-600 text-white border-sky-600 shadow-sm"
                         : "bg-[var(--card)] hover:bg-[var(--muted)] border-[var(--border)] text-[var(--foreground)]"
@@ -629,7 +822,7 @@ export function ResidentWizard({
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] font-semibold p-1"
+              className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] font-semibold min-h-[44px] min-w-[44px] px-3 py-2.5 flex items-center justify-center rounded-lg hover:bg-[var(--muted)] touch-manipulation cursor-pointer"
             >
               {t("action_back")}
             </button>
@@ -646,7 +839,7 @@ export function ResidentWizard({
               <select
                 value={selectedUnitId}
                 onChange={(e) => handleSelectUnit(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] font-bold focus:ring-2 focus:ring-sky-500/20"
+                className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] font-bold focus:ring-2 focus:ring-sky-500/20"
               >
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>
@@ -664,7 +857,7 @@ export function ResidentWizard({
                   value={unitNumber}
                   onChange={(e) => setUnitNumber(e.target.value)}
                   placeholder={locale === "ar" ? "رقم الوحدة (مثال: 12)" : "Unit Number (e.g. 12)"}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                  className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
                 <input
                   type="text"
@@ -672,7 +865,7 @@ export function ResidentWizard({
                   value={buildingName}
                   onChange={(e) => setBuildingName(e.target.value)}
                   placeholder={locale === "ar" ? "اسم العمارة / المجمع" : "Building / Block"}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                  className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
               </div>
             )}
@@ -702,7 +895,7 @@ export function ResidentWizard({
                           setIsOtherRoom(false);
                           setRoomLocation(room);
                         }}
-                        className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 touch-manipulation cursor-pointer ${
+                        className={`min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 touch-manipulation cursor-pointer ${
                           isSelected
                             ? "bg-sky-600 text-white border-sky-600 shadow-sm ring-2 ring-sky-500/30"
                             : "bg-[var(--card)] hover:bg-[var(--muted)] border-[var(--border)] text-[var(--foreground)]"
@@ -720,7 +913,7 @@ export function ResidentWizard({
                       setIsOtherRoom(true);
                       setRoomLocation(customRoomText || "");
                     }}
-                    className={`min-h-[40px] px-3.5 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 touch-manipulation cursor-pointer ${
+                    className={`min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 touch-manipulation cursor-pointer ${
                       isOtherRoom
                         ? "bg-purple-600 text-white border-purple-600 shadow-sm ring-2 ring-purple-500/30"
                         : "bg-[var(--card)] hover:bg-purple-500/10 border-dashed border-purple-400 text-purple-700 dark:text-purple-300"
@@ -761,7 +954,8 @@ export function ResidentWizard({
                 required
                 value={residentName}
                 onChange={(e) => setResidentName(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                placeholder={locale === "ar" ? "أدخل اسم الساكن ثلاثي" : "Resident full name"}
+                className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
               />
             </div>
             <div className="space-y-1">
@@ -771,7 +965,8 @@ export function ResidentWizard({
                 required
                 value={residentPhone}
                 onChange={(e) => setResidentPhone(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                placeholder={locale === "ar" ? "مثال: 01001234567" : "+20 100 123 4567"}
+                className="w-full px-3.5 py-2.5 min-h-[44px] text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] dir-ltr text-right"
               />
             </div>
           </div>
@@ -799,9 +994,12 @@ export function ResidentWizard({
                   <button
                     type="button"
                     onClick={() => handleRemovePhoto(i)}
-                    className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-red-600 text-white rounded-full"
+                    className="absolute top-0 right-0 min-w-[44px] min-h-[44px] p-2 flex items-center justify-center rounded-full text-white hover:text-red-400 touch-manipulation cursor-pointer"
+                    title={locale === "ar" ? "حذف الصورة" : "Remove photo"}
                   >
-                    <X className="w-3 h-3" />
+                    <span className="w-5 h-5 rounded-full bg-black/70 hover:bg-red-600 flex items-center justify-center shadow transition-colors">
+                      <X className="w-3.5 h-3.5" />
+                    </span>
                   </button>
                 </div>
               ))}
