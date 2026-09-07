@@ -133,7 +133,7 @@ export function WorkOrderSlip({
                 <tr className="border-b border-slate-300">
                   <td className="w-1/6 bg-slate-100 p-2 font-bold text-slate-700 border-l border-slate-300">العمارة / المجمع:</td>
                   <td className="w-2/6 p-2 font-semibold text-slate-900 border-l border-slate-300">{ticket.building_name || "المبنى الرئيسي"}</td>
-                  <td className="w-1/6 bg-slate-100 p-2 font-bold text-slate-700 border-l border-slate-300">رقم الشقة / الوحدة:</td>
+                  <td className="w-1/6 bg-slate-100 p-2 font-bold text-slate-700 border-l border-slate-300">رقم الوحدة:</td>
                   <td className="w-2/6 p-2 font-bold text-slate-900">{ticket.unit_number}</td>
                 </tr>
                 <tr className="border-b border-slate-300">

@@ -84,7 +84,7 @@ export const DICTIONARY: Translations = {
   action_reopen_ticket: { en: "Re-open Ticket", ar: "إعادة فتح البلاغ" },
 
   // Form Fields
-  field_unit_number: { en: "Unit Number", ar: "رقم الشقة / الفيلا" },
+  field_unit_number: { en: "Unit Number", ar: "رقم الوحدة" },
   field_building: { en: "Building / Block", ar: "العمارة / المجمع" },
   field_room_location: { en: "Room / Location", ar: "المكان بالتفصيل (مثل: المطبخ، الحمام)" },
   field_resident_name: { en: "Resident Name", ar: "اسم الساكن" },

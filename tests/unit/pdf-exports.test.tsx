@@ -166,8 +166,8 @@ describe("PDF Export Components & Punch List Grouping Hierarchy", () => {
       );
 
       // Verify both units appear as group headers
-      expect(html).toContain("شقة 204");
-      expect(html).toContain("شقة 101");
+      expect(html).toContain("وحدة 204");
+      expect(html).toContain("وحدة 101");
 
       // Verify trade headers appear inside units
       expect(html).toContain("تخصص: سباكة");

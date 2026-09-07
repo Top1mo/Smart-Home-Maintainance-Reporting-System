@@ -288,7 +288,7 @@ export function DispatcherTriage() {
               title={locale === "ar" ? "طباعة أمر الشغل للوحدة المحددة" : "Print Work Order Slip"}
             >
               <Printer className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>{locale === "ar" ? `طباعة أمر الشغل (شقة ${activeTicket.unit_number})` : `Work Order #${activeTicket.unit_number} (PDF)`}</span>
+              <span>{locale === "ar" ? `طباعة أمر الشغل (وحدة ${activeTicket.unit_number})` : `Work Order #${activeTicket.unit_number} (PDF)`}</span>
             </button>
           )}
         </div>

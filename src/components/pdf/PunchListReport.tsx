@@ -152,7 +152,7 @@ export function PunchListReport({
     >();
 
     filteredTickets.forEach((ticket) => {
-      const unitKey = ticket.unit_number ? `شقة ${ticket.unit_number}` : "الأجزاء والمرافق المشتركة";
+      const unitKey = ticket.unit_number ? `وحدة ${ticket.unit_number}` : "الأجزاء والمرافق المشتركة";
       if (!unitMap.has(unitKey)) {
         unitMap.set(unitKey, {
           unitNumber: ticket.unit_number || "عام",
@@ -223,7 +223,7 @@ export function PunchListReport({
               <option value="ALL" className="bg-slate-900">جميع الوحدات ({availableUnits.length})</option>
               {availableUnits.map((u) => (
                 <option key={u} value={u} className="bg-slate-900">
-                  شقة {u}
+                  وحدة {u}
                 </option>
               ))}
             </select>
@@ -296,7 +296,7 @@ export function PunchListReport({
               <span>Master Maintenance & Inspection Punch List</span>
               <span>•</span>
               <span className="font-semibold">
-                {filterUnit === "ALL" ? "جميع الوحدات المسجلة" : `تقرير مخصص: شقة ${filterUnit}`}
+                {filterUnit === "ALL" ? "جميع الوحدات المسجلة" : `تقرير مخصص: وحدة ${filterUnit}`}
               </span>
             </div>
           </div>

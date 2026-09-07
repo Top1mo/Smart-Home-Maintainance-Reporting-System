@@ -170,7 +170,7 @@ export function UnitManager() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={locale === "ar" ? "بحث برقم الشقة أو اسم الساكن..." : "Search unit or resident..."}
+            placeholder={locale === "ar" ? "بحث برقم الوحدة أو اسم الساكن..." : "Search unit or resident..."}
             className="w-full px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
           />
         </div>
@@ -286,7 +286,7 @@ export function UnitManager() {
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="space-y-1">
                 <label className="font-bold text-[var(--muted-foreground)]">
-                  {locale === "ar" ? "رقم الشقة / الوحدة:" : "Unit Number:"}
+                  {locale === "ar" ? "رقم الوحدة:" : "Unit Number:"}
                 </label>
                 <input
                   type="text"

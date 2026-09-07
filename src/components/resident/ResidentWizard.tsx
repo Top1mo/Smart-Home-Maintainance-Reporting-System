@@ -138,8 +138,10 @@ export function ResidentWizard({
             setSelectedUnitId(u.id);
             setUnitNumber(u.unit_number);
             setBuildingName(u.building_name);
-            setResidentName("");
-            setResidentPhone("");
+            if (!isLandlordMode) {
+              if (u.resident_name) setResidentName(u.resident_name);
+              if (u.resident_phone) setResidentPhone(u.resident_phone);
+            }
             const uRooms = Array.isArray(u.rooms) && u.rooms.length > 0
               ? u.rooms
               : ["المطبخ", "الحمام الرئيسي", "الريسبشن / الصالة", "غرفة النوم الرئيسية", "البلكونة"];
@@ -163,9 +165,9 @@ export function ResidentWizard({
     if (u) {
       setUnitNumber(u.unit_number);
       setBuildingName(u.building_name);
-      if (!isLandlordMode && !residentName) {
-        setResidentName(u.resident_name || "");
-        setResidentPhone(u.resident_phone || "");
+      if (!isLandlordMode) {
+        if (u.resident_name) setResidentName(u.resident_name);
+        if (u.resident_phone) setResidentPhone(u.resident_phone);
       }
       const uRooms: string[] = Array.isArray(u.rooms) && u.rooms.length > 0
         ? u.rooms
@@ -620,7 +622,7 @@ export function ResidentWizard({
             <label className="text-xs font-bold text-[var(--foreground)]">
               {units.length > 0
                 ? (locale === "ar" ? "الوحدة السكنية المسجلة:" : "Registered Residential Unit:")
-                : (locale === "ar" ? "بيانات الشقة والعمارة:" : "Unit & Building:")}
+                : (locale === "ar" ? "بيانات الوحدة والعمارة:" : "Unit & Building:")}
             </label>
             {units.length > 0 ? (
               <select
@@ -631,7 +633,7 @@ export function ResidentWizard({
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>
                     {locale === "ar"
-                      ? `شقة ${u.unit_number} — ${u.building_name}`
+                      ? `وحدة ${u.unit_number} — ${u.building_name}`
                       : `Unit ${u.unit_number} — ${u.building_name}`}
                   </option>
                 ))}
@@ -643,7 +645,7 @@ export function ResidentWizard({
                   required
                   value={unitNumber}
                   onChange={(e) => setUnitNumber(e.target.value)}
-                  placeholder={locale === "ar" ? "رقم الشقة / الوحدة (مثال: 12)" : "Unit Number (e.g. 12)"}
+                  placeholder={locale === "ar" ? "رقم الوحدة (مثال: 12)" : "Unit Number (e.g. 12)"}
                   className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
                 />
                 <input
@@ -669,7 +671,7 @@ export function ResidentWizard({
             return (
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[var(--foreground)]">
-                  {locale === "ar" ? "مكان العطل المحدد داخل الشقة:" : "Exact Room / Location:"}
+                  {locale === "ar" ? "مكان العطل المحدد داخل الوحدة:" : "Exact Room / Location:"}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {availableRooms.map((room) => {
