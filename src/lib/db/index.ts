@@ -226,6 +226,22 @@ export function getDb(dbPath?: string): DatabaseSync {
     // Column already exists
   }
 
+  // Ensure default fallback 'trade_other' exists
+  try {
+    db.exec(`
+      INSERT OR IGNORE INTO trades (id, slug, name_en, name_ar, icon, order_index, sort_order)
+      VALUES ('trade_other', 'OTHER', 'Other / Unlisted', 'تخصص آخر / غير مدرج', 'help-circle', 99, 99);
+
+      INSERT OR IGNORE INTO subcategories (id, trade_id, slug, name_en, name_ar, is_elv)
+      VALUES ('sub_other_general', 'trade_other', 'OTHER_GENERAL', 'General / Other', 'عام / غير مدرج', 0);
+
+      INSERT OR IGNORE INTO fault_symptoms (id, subcategory_id, symptom_en, symptom_ar, name_en, name_ar, default_severity, default_urgency, is_hazard)
+      VALUES ('sym_other_general', 'sub_other_general', 'Other Custom Fault', 'عطل آخر غير مدرج', 'Other Custom Fault', 'عطل آخر غير مدرج', 'MEDIUM', 'NORMAL', 0);
+    `);
+  } catch {
+    // ignore
+  }
+
   // Auto-seed if database is empty
   try {
     const tradeCount = db.prepare('SELECT COUNT(*) as count FROM trades').get() as { count: number } | undefined;

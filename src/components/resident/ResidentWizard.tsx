@@ -90,6 +90,8 @@ const TRADE_ICONS: Record<string, any> = {
   grid: Grid,
   tv: Tv,
   home: HomeIcon,
+  "help-circle": HelpCircle,
+  "plus-circle": PlusCircle,
 };
 
 import { FALLBACK_TRADES } from "@/lib/constants/trades-data";
@@ -113,7 +115,11 @@ export function ResidentWizard({
 
   // Form selections
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [isOtherTrade, setIsOtherTrade] = useState<boolean>(false);
+  const [customTradeText, setCustomTradeText] = useState<string>("");
   const [selectedSubcategory, setSelectedSubcategory] = useState<any | null>(null);
+  const [isOtherSubcategory, setIsOtherSubcategory] = useState<boolean>(false);
+  const [customSubcategoryText, setCustomSubcategoryText] = useState<string>("");
   const [selectedSymptom, setSelectedSymptom] = useState<any | null>(null);
   const [isOtherSymptom, setIsOtherSymptom] = useState<boolean>(false);
   const [customSymptomText, setCustomSymptomText] = useState<string>("");
@@ -167,6 +173,10 @@ export function ResidentWizard({
             if (parsed.description) setDescription(parsed.description);
             if (parsed.urgency) setUrgency(parsed.urgency);
             if (Array.isArray(parsed.photos)) setPhotos(parsed.photos);
+            if (parsed.customTradeText) setCustomTradeText(parsed.customTradeText);
+            if (parsed.isOtherTrade) setIsOtherTrade(true);
+            if (parsed.customSubcategoryText) setCustomSubcategoryText(parsed.customSubcategoryText);
+            if (parsed.isOtherSubcategory) setIsOtherSubcategory(true);
             if (parsed.customSymptomText) setCustomSymptomText(parsed.customSymptomText);
             if (parsed.faultDetailText) setFaultDetailText(parsed.faultDetailText);
             if (parsed.isOtherSymptom) {
@@ -182,16 +192,33 @@ export function ResidentWizard({
 
             // Restore trade / subcategory / symptom if tradeId present
             if (parsed.tradeId) {
-              const trade = FALLBACK_TRADES.find((t) => t.id === parsed.tradeId);
+              const tradeList = trades.length > 0 ? trades : FALLBACK_TRADES;
+              const trade = tradeList.find((t) => t.id === parsed.tradeId);
               if (trade) {
                 setSelectedTrade(trade);
+                if (trade.id === "trade_other" || parsed.isOtherTrade) {
+                  setIsOtherTrade(true);
+                }
                 if (parsed.subcategoryId) {
-                  const sub = trade.subcategories?.find((s) => s.id === parsed.subcategoryId);
-                  if (sub) {
-                    setSelectedSubcategory(sub);
-                    if (parsed.symptomId && !parsed.isOtherSymptom) {
-                      const sym = sub.symptoms?.find((sm) => sm.id === parsed.symptomId);
-                      if (sym) setSelectedSymptom(sym);
+                  if (parsed.isOtherSubcategory || parsed.subcategoryId === "sub_other_custom") {
+                    setIsOtherSubcategory(true);
+                    setSelectedSubcategory({
+                      id: "sub_other_custom",
+                      trade_id: trade.id,
+                      slug: "OTHER_CUSTOM",
+                      name_en: parsed.customSubcategoryText || "Other Type",
+                      name_ar: parsed.customSubcategoryText || "نوع آخر غير مدرج",
+                      is_elv: false,
+                      symptoms: [],
+                    });
+                  } else {
+                    const sub = trade.subcategories?.find((s) => s.id === parsed.subcategoryId);
+                    if (sub) {
+                      setSelectedSubcategory(sub);
+                      if (parsed.symptomId && !parsed.isOtherSymptom) {
+                        const sym = sub.symptoms?.find((sm) => sm.id === parsed.symptomId);
+                        if (sym) setSelectedSymptom(sym);
+                      }
                     }
                   }
                 }
@@ -233,6 +260,10 @@ export function ResidentWizard({
           urgency: urgency || "NORMAL",
           photos: photos || [],
           step: step,
+          isOtherTrade,
+          customTradeText,
+          isOtherSubcategory,
+          customSubcategoryText,
           isOtherSymptom,
           customSymptomText,
           faultDetailText,
@@ -258,6 +289,10 @@ export function ResidentWizard({
     selectedTrade,
     selectedSubcategory,
     selectedSymptom,
+    isOtherTrade,
+    customTradeText,
+    isOtherSubcategory,
+    customSubcategoryText,
     isOtherRoom,
     customRoomText,
     roomLocation,
@@ -283,6 +318,19 @@ export function ResidentWizard({
           const tradesData = await tradesRes.json();
           if (isMounted && tradesData.trades && tradesData.trades.length > 0) {
             setTrades(tradesData.trades);
+            // Refresh selectedTrade to full loaded trade if already selected
+            setSelectedTrade((prev) => {
+              if (!prev) return null;
+              const matching = tradesData.trades.find((t: any) => t.id === prev.id);
+              if (matching) {
+                setSelectedSubcategory((prevSub: any) => {
+                  if (!prevSub || prevSub.id === "sub_other_custom") return prevSub;
+                  return matching.subcategories?.find((s: any) => s.id === prevSub.id) || prevSub;
+                });
+                return matching;
+              }
+              return prev;
+            });
           }
         }
 
@@ -412,9 +460,14 @@ export function ResidentWizard({
     setSubmitting(true);
     try {
       const extraSpec = faultDetailText.trim() ? `[توضيح العطل: ${faultDetailText.trim()}]` : "";
-      const finalDesc = isOtherSymptom && customSymptomText
-        ? `[عطل مخصص: ${customSymptomText}] ${extraSpec} ${description}`.trim()
-        : `${extraSpec} ${description}`.trim();
+      const tradeSpec = isOtherTrade && customTradeText ? `[تخصص: ${customTradeText.trim()}]` : "";
+      const subSpec = isOtherSubcategory && customSubcategoryText ? `[نوع: ${customSubcategoryText.trim()}]` : "";
+      const symSpec = isOtherSymptom && customSymptomText ? `[عطل مخصص: ${customSymptomText.trim()}]` : "";
+
+      const finalDesc = [tradeSpec, subSpec, symSpec, extraSpec, description]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
 
       const finalRoom = isOtherRoom ? customRoomText.trim() : roomLocation.trim();
       const currentUnit = units.find((x) => x.id === selectedUnitId);
@@ -431,6 +484,9 @@ export function ResidentWizard({
         trade_id: selectedTrade.id,
         subcategory_id: selectedSubcategory?.id || selectedTrade.subcategories?.[0]?.id || "sub_general",
         symptom_id: selectedSymptom?.id || "sym_general",
+        custom_trade_text: isOtherTrade ? customTradeText.trim() : undefined,
+        custom_subcategory_text: isOtherSubcategory ? customSubcategoryText.trim() : undefined,
+        custom_symptom_text: isOtherSymptom ? customSymptomText.trim() : undefined,
         room_location_en: finalRoom || undefined,
         room_location_ar: finalRoom || undefined,
         description: finalDesc || undefined,
@@ -481,7 +537,11 @@ export function ResidentWizard({
     } catch (e) {}
     setStep(1);
     setSelectedTrade(null);
+    setIsOtherTrade(false);
+    setCustomTradeText("");
     setSelectedSubcategory(null);
+    setIsOtherSubcategory(false);
+    setCustomSubcategoryText("");
     setSelectedSymptom(null);
     setIsOtherSymptom(false);
     setCustomSymptomText("");
@@ -563,6 +623,7 @@ export function ResidentWizard({
             {trades.map((trade) => {
               const IconComponent = TRADE_ICONS[trade.icon] || Wrench;
               const isSelected = selectedTrade?.id === trade.id;
+              const isOther = trade.id === "trade_other" || trade.slug === "OTHER";
               const isElvTrade = trade.slug === "ELECTRICAL";
 
               return (
@@ -571,27 +632,47 @@ export function ResidentWizard({
                   key={trade.id}
                   onClick={() => {
                     setSelectedTrade(trade);
+                    setIsOtherTrade(isOther);
                     setSelectedSubcategory(null);
+                    setIsOtherSubcategory(false);
                     setSelectedSymptom(null);
                     setIsOtherSymptom(false);
                   }}
                   className={`min-h-[92px] sm:min-h-[105px] p-3 sm:p-4 rounded-xl text-start transition-all border flex flex-col justify-between active:scale-95 touch-manipulation cursor-pointer ${
                     isSelected
-                      ? "bg-sky-500/15 border-sky-600 text-sky-950 dark:text-sky-200 ring-2 ring-sky-500/30 shadow-md font-bold"
+                      ? isOther
+                        ? "bg-purple-500/15 border-purple-600 text-purple-950 dark:text-purple-200 ring-2 ring-purple-500/30 shadow-md font-bold"
+                        : "bg-sky-500/15 border-sky-600 text-sky-950 dark:text-sky-200 ring-2 ring-sky-500/30 shadow-md font-bold"
+                      : isOther
+                      ? "bg-[var(--card)] border-dashed border-purple-400/60 dark:border-purple-500/40 text-[var(--foreground)] hover:border-purple-500"
                       : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--muted)]"
                   }`}
                 >
                   <div className="flex items-center justify-between w-full">
                     <div
                       className={`p-2 rounded-lg transition-colors ${
-                        isSelected ? "bg-sky-600 text-white" : "bg-[var(--muted)] text-[var(--muted-foreground)]"
+                        isSelected
+                          ? isOther
+                            ? "bg-purple-600 text-white"
+                            : "bg-sky-600 text-white"
+                          : isOther
+                          ? "bg-purple-500/10 text-purple-600"
+                          : "bg-[var(--muted)] text-[var(--muted-foreground)]"
                       }`}
                     >
                       <IconComponent className="w-5 h-5" />
                     </div>
                     {isSelected ? (
-                      <span className="w-5 h-5 rounded-full bg-sky-600 text-white flex items-center justify-center text-[10px] font-bold shadow-sm">
+                      <span
+                        className={`w-5 h-5 rounded-full text-white flex items-center justify-center text-[10px] font-bold shadow-sm ${
+                          isOther ? "bg-purple-600" : "bg-sky-600"
+                        }`}
+                      >
                         ✓
+                      </span>
+                    ) : isOther ? (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+                        {locale === "ar" ? "مخصص" : "Custom"}
                       </span>
                     ) : isElvTrade ? (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20">
@@ -607,17 +688,60 @@ export function ResidentWizard({
             })}
           </div>
 
+          {/* Custom Trade Name Input when trade_other is selected */}
+          {isOtherTrade && (
+            <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-1.5 animate-in fade-in">
+              <label className="text-xs font-bold text-purple-900 dark:text-purple-300">
+                {locale === "ar" ? "اكتب اسم التخصص أو المجال المطلوب:" : "Enter Custom Trade / Category Name:"}
+              </label>
+              <input
+                type="text"
+                required
+                value={customTradeText}
+                onChange={(e) => setCustomTradeText(e.target.value)}
+                placeholder={locale === "ar" ? "مثال: مكافحة حشرات، عزل أسطح، تلميع رخام، زجاج..." : "e.g. Pest control, roof insulation, glass, etc."}
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] focus:ring-2 focus:ring-purple-500/30 focus:outline-none"
+              />
+            </div>
+          )}
+
           <div className="pt-3 sm:pt-4 border-t border-[var(--border)] space-y-2">
-            {!selectedTrade && (
+            {!selectedTrade ? (
               <p className="text-center text-xs text-[var(--muted-foreground)] font-medium">
                 {locale === "ar" ? "اضغط على أحد التخصصات أعلاه أولاً لتفعيل المتابعة" : "Please tap a category above to continue"}
               </p>
-            )}
+            ) : isOtherTrade && !customTradeText.trim() ? (
+              <p className="text-center text-xs text-purple-700 dark:text-purple-300 font-medium">
+                {locale === "ar" ? "يرجى كتابة اسم التخصص في الحقل أعلاه للمتابعة" : "Please enter the custom category name above to continue"}
+              </p>
+            ) : null}
             <button
               type="button"
               suppressHydrationWarning
-              disabled={!selectedTrade}
-              onClick={() => setStep(2)}
+              disabled={!selectedTrade || (isOtherTrade && !customTradeText.trim())}
+              onClick={() => {
+                if (selectedTrade?.id === "trade_other") {
+                  setIsOtherSubcategory(true);
+                  setSelectedSubcategory({
+                    id: "sub_other_custom",
+                    trade_id: "trade_other",
+                    slug: "OTHER_CUSTOM",
+                    name_en: customSubcategoryText || "General",
+                    name_ar: customSubcategoryText || "عام",
+                    is_elv: false,
+                    symptoms: [],
+                  });
+                  setIsOtherSymptom(true);
+                  setSelectedSymptom({
+                    id: "sym_other_custom",
+                    symptom_en: customSymptomText || "Other Fault",
+                    symptom_ar: customSymptomText || "عطل آخر",
+                    default_severity: "MEDIUM",
+                    is_hazard: false,
+                  });
+                }
+                setStep(2);
+              }}
               className="w-full tactile-button py-3.5 px-6 bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 touch-manipulation cursor-pointer"
             >
               <span>{t("action_next")}</span>
@@ -633,7 +757,9 @@ export function ResidentWizard({
           <div className="flex items-center justify-between">
             <div>
               <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
-                {locale === "ar" ? selectedTrade.name_ar : selectedTrade.name_en}
+                {isOtherTrade && customTradeText
+                  ? customTradeText
+                  : (locale === "ar" ? selectedTrade.name_ar : selectedTrade.name_en)}
               </span>
               <h2 className="text-lg sm:text-xl font-bold tracking-tight text-[var(--foreground)] mt-0.5">
                 {locale === "ar" ? "حدد النظام ونوع العطل بدقة" : "Select Subsystem & Fault"}
@@ -651,16 +777,17 @@ export function ResidentWizard({
           {/* Subcategory Pills */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-[var(--muted-foreground)]">
-              {locale === "ar" ? "الجزء أو النظام المتضرر:" : "Sub-System:"}
+              {locale === "ar" ? "الجزء أو نوع النظام المتضرر:" : "Sub-System / Type:"}
             </label>
             <div className="flex flex-wrap gap-2">
               {selectedTrade.subcategories?.map((sub) => {
-                const isSelected = selectedSubcategory?.id === sub.id;
+                const isSelected = selectedSubcategory?.id === sub.id && !isOtherSubcategory;
                 return (
                   <button
                     type="button"
                     key={sub.id}
                     onClick={() => {
+                      setIsOtherSubcategory(false);
                       setSelectedSubcategory(sub);
                       setSelectedSymptom(null);
                       setIsOtherSymptom(false);
@@ -675,120 +802,203 @@ export function ResidentWizard({
                   </button>
                 );
               })}
+
+              {/* Other Subcategory Pill */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOtherSubcategory(true);
+                  setSelectedSubcategory({
+                    id: "sub_other_custom",
+                    trade_id: selectedTrade.id,
+                    slug: "OTHER_CUSTOM",
+                    name_en: customSubcategoryText || "Other Type",
+                    name_ar: customSubcategoryText || "نوع آخر غير مدرج",
+                    is_elv: false,
+                    symptoms: [],
+                  });
+                  setIsOtherSymptom(true);
+                  setSelectedSymptom({
+                    id: "sym_other_custom",
+                    symptom_en: customSymptomText || "Other Fault",
+                    symptom_ar: customSymptomText || "عطل آخر غير مدرج",
+                    default_severity: "MEDIUM",
+                    is_hazard: false,
+                  });
+                }}
+                className={`min-h-[44px] px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 touch-manipulation cursor-pointer ${
+                  isOtherSubcategory
+                    ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                    : "bg-[var(--card)] border-dashed border-purple-400/60 text-purple-700 dark:text-purple-300 hover:border-purple-500"
+                }`}
+              >
+                {locale === "ar" ? "+ نوع آخر غير مدرج" : "+ Other Unlisted Type"}
+              </button>
             </div>
+
+            {/* Custom Subcategory Input Box */}
+            {isOtherSubcategory && (
+              <div className="p-3.5 mt-2 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-1.5 animate-in fade-in">
+                <label className="text-xs font-bold text-purple-900 dark:text-purple-300">
+                  {locale === "ar" ? "اكتب نوع أو جزء النظام المطلوب:" : "Specify Custom Sub-System / Type:"}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={customSubcategoryText}
+                  onChange={(e) => {
+                    setCustomSubcategoryText(e.target.value);
+                    if (selectedSubcategory) {
+                      setSelectedSubcategory({
+                        ...selectedSubcategory,
+                        name_en: e.target.value,
+                        name_ar: e.target.value,
+                      });
+                    }
+                  }}
+                  placeholder={locale === "ar" ? "مثال: شفاط مركزي، سخان فوري، فلتر مياه 7 مراحل..." : "e.g. Range hood, water filter, tankless heater..."}
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] focus:ring-2 focus:ring-purple-500/30 focus:outline-none"
+                />
+              </div>
+            )}
           </div>
 
           {/* Symptoms List + Other Option */}
           {selectedSubcategory && (
             <div className="space-y-2.5 pt-3 border-t border-[var(--border)]">
               <label className="text-xs font-bold text-[var(--muted-foreground)]">
-                {locale === "ar" ? "اختر نوع العطل أو أضف عطلاً آخر:" : "Fault Manifestation:"}
+                {locale === "ar" ? "تحديد العطل بدقة:" : "Fault Manifestation:"}
               </label>
 
-              <div className="space-y-2">
-                {selectedSubcategory.symptoms?.map((sym: any) => {
-                  const isSelected = selectedSymptom?.id === sym.id && !isOtherSymptom;
-                  return (
-                    <button
-                      type="button"
-                      key={sym.id}
-                      onClick={() => handleSelectSymptom(sym)}
-                      className={`w-full min-h-[48px] p-3.5 rounded-xl text-start text-xs border transition-all flex items-start gap-3 active:scale-[0.98] touch-manipulation cursor-pointer ${
-                        isSelected
-                          ? "bg-sky-500/15 border-sky-600 text-sky-950 dark:text-sky-100 ring-2 ring-sky-500/30 font-bold shadow-sm"
-                          : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--muted)]"
-                      }`}
-                    >
-                      <div className="mt-0.5 shrink-0">
-                        {sym.is_hazard ? (
-                          <AlertTriangle className="w-4 h-4 text-red-500" />
-                        ) : (
-                          <div
-                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                              isSelected ? "border-sky-600 bg-sky-600 text-white text-[10px]" : "border-slate-400"
-                            }`}
-                          >
-                            {isSelected ? "✓" : null}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-bold text-xs sm:text-sm leading-snug">
-                          {locale === "ar" ? sym.symptom_ar : sym.symptom_en}
+              {isOtherSubcategory ? (
+                <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-1.5 animate-in fade-in">
+                  <label className="text-xs font-bold text-purple-900 dark:text-purple-300">
+                    {locale === "ar" ? "اكتب تفاصيل أو وصف العطل المتضرر:" : "Describe the specific issue / fault:"}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={customSymptomText}
+                    onChange={(e) => {
+                      setCustomSymptomText(e.target.value);
+                      setSelectedSymptom({
+                        id: "sym_other_custom",
+                        symptom_en: e.target.value,
+                        symptom_ar: e.target.value,
+                        default_severity: "MEDIUM",
+                        is_hazard: false,
+                      });
+                    }}
+                    placeholder={locale === "ar" ? "مثال: تسريب مياه من الوصلة، توقف تام عن العمل..." : "e.g. leaking from connection, stopped functioning..."}
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] focus:ring-2 focus:ring-purple-500/30 focus:outline-none"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {selectedSubcategory.symptoms?.map((sym: any) => {
+                    const isSelected = selectedSymptom?.id === sym.id && !isOtherSymptom;
+                    return (
+                      <button
+                        type="button"
+                        key={sym.id}
+                        onClick={() => handleSelectSymptom(sym)}
+                        className={`w-full min-h-[48px] p-3.5 rounded-xl text-start text-xs border transition-all flex items-start gap-3 active:scale-[0.98] touch-manipulation cursor-pointer ${
+                          isSelected
+                            ? "bg-sky-500/15 border-sky-600 text-sky-950 dark:text-sky-100 ring-2 ring-sky-500/30 font-bold shadow-sm"
+                            : "bg-[var(--card)] border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--muted)]"
+                        }`}
+                      >
+                        <div className="mt-0.5 shrink-0">
+                          {sym.is_hazard ? (
+                            <AlertTriangle className="w-4 h-4 text-red-500" />
+                          ) : (
+                            <div
+                              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                isSelected ? "border-sky-600 bg-sky-600 text-white text-[10px]" : "border-slate-400"
+                              }`}
+                            >
+                              {isSelected ? "✓" : null}
+                            </div>
+                          )}
                         </div>
-                        {sym.is_hazard && (
-                          <span className="text-[10px] font-extrabold text-red-600 dark:text-red-400 block mt-0.5">
-                            {locale === "ar" ? "خطر وسلامة عاجل" : "Immediate Hazard"}
-                          </span>
-                        )}
+                        <div className="flex-1">
+                          <div className="font-bold text-xs sm:text-sm leading-snug">
+                            {locale === "ar" ? sym.symptom_ar : sym.symptom_en}
+                          </div>
+                          {sym.is_hazard && (
+                            <span className="text-[10px] font-extrabold text-red-600 dark:text-red-400 block mt-0.5">
+                              {locale === "ar" ? "خطر وسلامة عاجل" : "Immediate Hazard"}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {/* The "Other" Custom Fault Option */}
+                  <button
+                    type="button"
+                    onClick={handleSelectOther}
+                    className={`w-full min-h-[48px] p-3.5 rounded-xl text-start text-xs border transition-all flex items-start gap-3 active:scale-[0.98] touch-manipulation cursor-pointer ${
+                      isOtherSymptom
+                        ? "bg-purple-500/15 border-purple-600 text-purple-950 dark:text-purple-100 ring-2 ring-purple-500/30 font-bold"
+                        : "bg-[var(--card)] border-dashed border-[var(--border)] hover:border-purple-400 text-[var(--foreground)]"
+                    }`}
+                  >
+                    <PlusCircle className="w-5 h-5 text-purple-600 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-bold text-xs sm:text-sm text-purple-800 dark:text-purple-300">
+                        {locale === "ar" ? "عطل آخر غير مدرج في القائمة (+)" : "Other Unlisted Fault (+)"}
                       </div>
-                    </button>
-                  );
-                })}
-
-                {/* The "Other" Custom Fault Option */}
-                <button
-                  type="button"
-                  onClick={handleSelectOther}
-                  className={`w-full min-h-[48px] p-3.5 rounded-xl text-start text-xs border transition-all flex items-start gap-3 active:scale-[0.98] touch-manipulation cursor-pointer ${
-                    isOtherSymptom
-                      ? "bg-purple-500/15 border-purple-600 text-purple-950 dark:text-purple-100 ring-2 ring-purple-500/30 font-bold"
-                      : "bg-[var(--card)] border-dashed border-[var(--border)] hover:border-purple-400 text-[var(--foreground)]"
-                  }`}
-                >
-                  <PlusCircle className="w-5 h-5 text-purple-600 mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <div className="font-bold text-xs sm:text-sm text-purple-800 dark:text-purple-300">
-                      {locale === "ar" ? "عطل آخر غير مدرج في القائمة (+)" : "Other Unlisted Fault (+)"}
+                      <span className="text-[11px] text-[var(--muted-foreground)] block mt-0.5">
+                        {locale === "ar" ? "اضغط هنا لكتابة وصف المشكلة بيدك" : "Tap here to write your custom issue"}
+                      </span>
                     </div>
-                    <span className="text-[11px] text-[var(--muted-foreground)] block mt-0.5">
-                      {locale === "ar" ? "اضغط هنا لكتابة وصف المشكلة بيدك" : "Tap here to write your custom issue"}
-                    </span>
-                  </div>
-                </button>
+                  </button>
 
-                {/* Text box for Other */}
-                {isOtherSymptom && (
-                  <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-1.5 animate-in fade-in">
-                    <label className="text-xs font-bold text-purple-900 dark:text-purple-300">
-                      {locale === "ar" ? "اكتب اسم أو عنوان العطل:" : "Enter Custom Fault Name:"}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={customSymptomText}
-                      onChange={(e) => {
-                        setCustomSymptomText(e.target.value);
-                        if (selectedSymptom) {
-                          setSelectedSymptom({
-                            ...selectedSymptom,
-                            symptom_en: e.target.value,
-                            symptom_ar: e.target.value,
-                          });
-                        }
-                      }}
-                      placeholder={locale === "ar" ? "مثال: لمبة الشرفة بتنور وتطفي لوحدها" : "e.g. Balcony light flickers intermittently"}
-                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
-                    />
-                  </div>
-                )}
+                  {/* Text box for Other Symptom */}
+                  {isOtherSymptom && (
+                    <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-1.5 animate-in fade-in">
+                      <label className="text-xs font-bold text-purple-900 dark:text-purple-300">
+                        {locale === "ar" ? "اكتب اسم أو عنوان العطل:" : "Enter Custom Fault Name:"}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={customSymptomText}
+                        onChange={(e) => {
+                          setCustomSymptomText(e.target.value);
+                          if (selectedSymptom) {
+                            setSelectedSymptom({
+                              ...selectedSymptom,
+                              symptom_en: e.target.value,
+                              symptom_ar: e.target.value,
+                            });
+                          }
+                        }}
+                        placeholder={locale === "ar" ? "مثال: لمبة الشرفة بتنور وتطفي لوحدها" : "e.g. Balcony light flickers intermittently"}
+                        className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] focus:ring-2 focus:ring-purple-500/30 focus:outline-none"
+                      />
+                    </div>
+                  )}
 
-                {/* Optional Fault Detail Specification Input (for standard symptoms) */}
-                {selectedSymptom && !isOtherSymptom && (
-                  <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-1.5 animate-in fade-in">
-                    <label className="text-xs font-bold text-sky-900 dark:text-sky-300">
-                      {locale === "ar" ? "توضيح إضافي لنوع العطل (اختياري):" : "Additional fault specification (optional):"}
-                    </label>
-                    <input
-                      type="text"
-                      value={faultDetailText}
-                      onChange={(e) => setFaultDetailText(e.target.value)}
-                      placeholder={locale === "ar" ? "مثال: الصوت بيظهر عند تشغيل السرعة العالية أو فتح المحبس" : "e.g. noise only happens on high speed"}
-                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
-                    />
-                  </div>
-                )}
-              </div>
+                  {/* Optional Fault Detail Specification Input (for standard symptoms) */}
+                  {selectedSymptom && !isOtherSymptom && (
+                    <div className="p-3.5 rounded-xl bg-sky-500/10 border border-sky-500/30 space-y-1.5 animate-in fade-in">
+                      <label className="text-xs font-bold text-sky-900 dark:text-sky-300">
+                        {locale === "ar" ? "توضيح إضافي لنوع العطل (اختياري):" : "Additional fault specification (optional):"}
+                      </label>
+                      <input
+                        type="text"
+                        value={faultDetailText}
+                        onChange={(e) => setFaultDetailText(e.target.value)}
+                        placeholder={locale === "ar" ? "مثال: الصوت بيظهر عند تشغيل السرعة العالية أو فتح المحبس" : "e.g. noise only happens on high speed"}
+                        className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -802,7 +1012,12 @@ export function ResidentWizard({
             </button>
             <button
               type="button"
-              disabled={!selectedSymptom || (isOtherSymptom && !customSymptomText.trim())}
+              disabled={
+                !selectedSubcategory ||
+                (isOtherSubcategory && !customSubcategoryText.trim()) ||
+                !selectedSymptom ||
+                (isOtherSymptom && !customSymptomText.trim())
+              }
               onClick={() => setStep(3)}
               className="flex-1 tactile-button py-3 px-6 bg-sky-600 hover:bg-sky-700 text-white text-xs sm:text-sm font-bold shadow-md disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[46px] touch-manipulation cursor-pointer"
             >
@@ -820,8 +1035,8 @@ export function ResidentWizard({
             <div>
               <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
                 {locale === "ar"
-                  ? `${selectedTrade?.name_ar} > ${selectedSubcategory?.name_ar || ""}`
-                  : `${selectedTrade?.name_en} > ${selectedSubcategory?.name_en || ""}`}
+                  ? `${isOtherTrade && customTradeText ? customTradeText : selectedTrade?.name_ar} > ${isOtherSubcategory && customSubcategoryText ? customSubcategoryText : selectedSubcategory?.name_ar || ""}`
+                  : `${isOtherTrade && customTradeText ? customTradeText : selectedTrade?.name_en} > ${isOtherSubcategory && customSubcategoryText ? customSubcategoryText : selectedSubcategory?.name_en || ""}`}
               </span>
               <h2 className="text-lg sm:text-xl font-bold tracking-tight text-[var(--foreground)] mt-0.5">
                 {locale === "ar" ? "بيانات الوحدة وتفاصيل البلاغ" : "Location & Report Details"}

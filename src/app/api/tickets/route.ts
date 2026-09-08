@@ -147,6 +147,8 @@ export async function POST(request: NextRequest) {
       trade_id,
       subcategory_id,
       symptom_id,
+      custom_trade_text,
+      custom_subcategory_text,
       custom_symptom_text,
       room_location_en,
       room_location_ar,
@@ -202,10 +204,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Dynamic support for custom "Other" trade IDs (e.g. trade_other)
+    const isCustomTrade = trade_id === 'trade_other' || String(trade_id).startsWith('trade_other');
+    if (isCustomTrade) {
+      db.prepare(`
+        INSERT OR IGNORE INTO trades (id, slug, name_en, name_ar, icon, order_index, sort_order)
+        VALUES (?, 'OTHER', 'Other / Unlisted', 'تخصص آخر / غير مدرج', 'help-circle', 99, 99)
+      `).run(trade_id);
+    }
+
     // Validate trade_id
     const tradeRow = db.prepare('SELECT id FROM trades WHERE id = ?').get(trade_id);
     if (!tradeRow) {
       return NextResponse.json({ error: `Trade not found: ${trade_id}` }, { status: 400 });
+    }
+
+    // Dynamic support for custom "Other" subcategory IDs (e.g. sub_other_custom)
+    const isCustomSubcat = subcategory_id === 'sub_other_custom' || String(subcategory_id).startsWith('sub_other');
+    if (isCustomSubcat) {
+      const customSubcatLabel = custom_subcategory_text || finalDescription || 'نوع آخر غير مدرج';
+      db.prepare(`
+        INSERT OR REPLACE INTO subcategories (id, trade_id, slug, name_en, name_ar, is_elv)
+        VALUES (?, ?, 'OTHER_CUSTOM', ?, ?, 0)
+      `).run(subcategory_id, trade_id, customSubcatLabel, customSubcatLabel);
     }
 
     // Validate subcategory_id and trade association
