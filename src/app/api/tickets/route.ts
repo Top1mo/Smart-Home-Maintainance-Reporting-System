@@ -220,12 +220,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Dynamic support for custom "Other" subcategory IDs (e.g. sub_other_custom)
-    const isCustomSubcat = subcategory_id === 'sub_other_custom' || String(subcategory_id).startsWith('sub_other');
+    const isCustomSubcat = subcategory_id === 'sub_other_custom' || (String(subcategory_id).startsWith('sub_other') && subcategory_id !== 'sub_other_general');
     if (isCustomSubcat) {
       const customSubcatLabel = custom_subcategory_text || finalDescription || 'نوع آخر غير مدرج';
       db.prepare(`
-        INSERT OR REPLACE INTO subcategories (id, trade_id, slug, name_en, name_ar, is_elv)
+        INSERT INTO subcategories (id, trade_id, slug, name_en, name_ar, is_elv)
         VALUES (?, ?, 'OTHER_CUSTOM', ?, ?, 0)
+        ON CONFLICT(id) DO UPDATE SET trade_id=excluded.trade_id, name_en=excluded.name_en, name_ar=excluded.name_ar
       `).run(subcategory_id, trade_id, customSubcatLabel, customSubcatLabel);
     }
 
@@ -242,14 +243,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Dynamic support for custom "Other" symptom IDs (e.g. sym_other_custom)
-    const isCustomSymptom = symptom_id === 'sym_other_custom' || String(symptom_id).startsWith('sym_other');
+    const isCustomSymptom = symptom_id === 'sym_other_custom' || (String(symptom_id).startsWith('sym_other') && symptom_id !== 'sym_other_general');
     if (isCustomSymptom) {
       const customLabel = custom_symptom_text || finalDescription || 'عطل آخر غير مدرج';
       db.prepare(`
-        INSERT OR REPLACE INTO fault_symptoms (
+        INSERT INTO fault_symptoms (
           id, subcategory_id, symptom_en, symptom_ar, name_en, name_ar,
           default_severity, default_urgency, is_hazard
         ) VALUES (?, ?, ?, ?, ?, ?, 'MEDIUM', 'NORMAL', 0)
+        ON CONFLICT(id) DO UPDATE SET subcategory_id=excluded.subcategory_id, symptom_en=excluded.symptom_en, symptom_ar=excluded.symptom_ar, name_en=excluded.name_en, name_ar=excluded.name_ar
       `).run(symptom_id, subcategory_id, customLabel, customLabel, customLabel, customLabel);
     }
 
