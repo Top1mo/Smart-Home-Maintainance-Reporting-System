@@ -294,6 +294,10 @@ export function ResidentWizard({
             setSelectedUnitId((prev) => prev || u.id);
             setUnitNumber((prev) => prev || u.unit_number);
             setBuildingName((prev) => prev || u.building_name);
+            if (!isLandlordMode) {
+              if (u.resident_name) setResidentName((prev) => prev || u.resident_name);
+              if (u.resident_phone) setResidentPhone((prev) => prev || u.resident_phone);
+            }
             const uRooms = Array.isArray(u.rooms) && u.rooms.length > 0
               ? u.rooms
               : ["المطبخ", "الحمام الرئيسي", "الريسبشن / الصالة", "غرفة النوم الرئيسية", "البلكونة"];
@@ -317,6 +321,10 @@ export function ResidentWizard({
     if (u) {
       setUnitNumber(u.unit_number);
       setBuildingName(u.building_name);
+      if (!isLandlordMode) {
+        if (u.resident_name) setResidentName(u.resident_name);
+        if (u.resident_phone) setResidentPhone(u.resident_phone);
+      }
       const uRooms: string[] = Array.isArray(u.rooms) && u.rooms.length > 0
         ? u.rooms
         : ["المطبخ", "الحمام الرئيسي", "الريسبشن / الصالة", "غرفة النوم الرئيسية", "البلكونة"];
