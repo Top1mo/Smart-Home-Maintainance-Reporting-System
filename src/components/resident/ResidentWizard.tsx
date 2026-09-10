@@ -317,20 +317,23 @@ export function ResidentWizard({
         if (tradesRes && tradesRes.ok) {
           const tradesData = await tradesRes.json();
           if (isMounted && tradesData.trades && tradesData.trades.length > 0) {
-            setTrades(tradesData.trades);
-            // Refresh selectedTrade to full loaded trade if already selected
-            setSelectedTrade((prev) => {
-              if (!prev) return null;
-              const matching = tradesData.trades.find((t: any) => t.id === prev.id);
-              if (matching) {
-                setSelectedSubcategory((prevSub: any) => {
-                  if (!prevSub || prevSub.id === "sub_other_custom") return prevSub;
-                  return matching.subcategories?.find((s: any) => s.id === prevSub.id) || prevSub;
-                });
-                return matching;
-              }
-              return prev;
-            });
+            const hasRealTrades = tradesData.trades.some((t: any) => t.id !== "trade_other");
+            if (hasRealTrades) {
+              setTrades(tradesData.trades);
+              // Refresh selectedTrade to full loaded trade if already selected
+              setSelectedTrade((prev) => {
+                if (!prev) return null;
+                const matching = tradesData.trades.find((t: any) => t.id === prev.id);
+                if (matching) {
+                  setSelectedSubcategory((prevSub: any) => {
+                    if (!prevSub || prevSub.id === "sub_other_custom") return prevSub;
+                    return matching.subcategories?.find((s: any) => s.id === prevSub.id) || prevSub;
+                  });
+                  return matching;
+                }
+                return prev;
+              });
+            }
           }
         }
 

@@ -119,9 +119,25 @@ const I18nContext = createContext<I18nContextType>({
   t: (key) => key,
 });
 
+export const LOCALE_STORAGE_KEY = "home_faults_locale";
+
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("ar"); // Arabic default as requested!
   const direction: Direction = locale === "ar" ? "rtl" : "ltr";
+
+  // Restore saved locale preference from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
+        if (saved === "en" || saved === "ar") {
+          setLocaleState(saved);
+        }
+      } catch {
+        // localStorage not available or restricted
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Sync document attributes
@@ -133,6 +149,13 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = (newLocale: Locale) => {
     setLocaleState(newLocale);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
+      } catch {
+        // ignore
+      }
+    }
   };
 
   const t = (key: string): string => {

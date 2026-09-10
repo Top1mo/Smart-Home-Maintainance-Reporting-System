@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { seedTaxonomyOnly } from '@/lib/db/seed-data';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
     const db = getDb();
+
+    // Ensure taxonomy is populated if database was partially initialized
+    const tradeCheck = db.prepare("SELECT COUNT(*) as count FROM trades WHERE id != 'trade_other'").get() as { count: number } | undefined;
+    if (!tradeCheck || tradeCheck.count < 11) {
+      seedTaxonomyOnly(db);
+    }
 
     // 1. Fetch trades
     const trades: any[] = db

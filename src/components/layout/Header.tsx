@@ -4,6 +4,8 @@ import React from "react";
 import { useI18n, Locale } from "@/lib/i18n/context";
 import { Globe, Moon, Sun, Home, Shield, BarChart3, WifiOff } from "lucide-react";
 
+export const THEME_STORAGE_KEY = "home_faults_theme";
+
 export function Header({
   activeRole,
   onSelectRole,
@@ -22,6 +24,23 @@ export function Header({
       const handleOffline = () => setIsOnline(false);
       window.addEventListener("online", handleOnline);
       window.addEventListener("offline", handleOffline);
+
+      // Restore theme preference
+      try {
+        const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+        const hasDarkClass = document.documentElement.classList.contains("dark");
+        const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const shouldBeDark = savedTheme === "dark" || (!savedTheme && (hasDarkClass || systemPrefersDark));
+        setIsDark(shouldBeDark);
+        if (shouldBeDark) {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      } catch {
+        // ignore
+      }
+
       return () => {
         window.removeEventListener("online", handleOnline);
         window.removeEventListener("offline", handleOffline);
@@ -42,6 +61,11 @@ export function Header({
         document.documentElement.classList.add("dark");
       } else {
         document.documentElement.classList.remove("dark");
+      }
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, next ? "dark" : "light");
+      } catch {
+        // ignore
       }
     }
   };

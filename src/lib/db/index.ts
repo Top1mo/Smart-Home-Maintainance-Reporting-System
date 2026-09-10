@@ -226,6 +226,16 @@ export function getDb(dbPath?: string): DatabaseSync {
     // Column already exists
   }
 
+  // Auto-seed taxonomy and units if empty or incomplete
+  try {
+    const tradeCount = db.prepare("SELECT COUNT(*) as count FROM trades WHERE id != 'trade_other'").get() as { count: number } | undefined;
+    if (!tradeCount || tradeCount.count < 11) {
+      seedTaxonomyOnly(db);
+    }
+  } catch (err) {
+    console.error('[DB] Auto-seed check failed:', err);
+  }
+
   // Ensure default fallback 'trade_other' exists
   try {
     db.exec(`
@@ -240,16 +250,6 @@ export function getDb(dbPath?: string): DatabaseSync {
     `);
   } catch {
     // ignore
-  }
-
-  // Auto-seed if database is empty
-  try {
-    const tradeCount = db.prepare('SELECT COUNT(*) as count FROM trades').get() as { count: number } | undefined;
-    if (!tradeCount || tradeCount.count === 0) {
-      seedTaxonomyOnly(db);
-    }
-  } catch (err) {
-    console.error('[DB] Auto-seed check failed:', err);
   }
 
   if (!dbPath) {

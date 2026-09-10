@@ -2771,19 +2771,54 @@ export const SEED_TICKETS = [
 ];
 
 export function seedTaxonomyOnly(db: DatabaseSync): void {
-  const existing = db.prepare('SELECT COUNT(*) as count FROM trades').get() as { count: number } | undefined;
-  if (existing && existing.count > 0) {
+  const existing = db.prepare("SELECT COUNT(*) as count FROM trades WHERE id != 'trade_other'").get() as { count: number } | undefined;
+  if (existing && existing.count >= 11) {
     return;
   }
 
   db.exec('BEGIN IMMEDIATE;');
   try {
-    // 1. Clean default property
-    const insertProp = db.prepare(`
-      INSERT OR REPLACE INTO properties (id, name_en, name_ar, address_en, address_ar, city)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    insertProp.run('prop_default', 'Residential Property', 'العقار السكني', 'Main Building', 'المبنى الرئيسي', 'Cairo');
+    // 1. Properties & Units (if none exist)
+    const unitCount = db.prepare('SELECT COUNT(*) as count FROM units').get() as { count: number } | undefined;
+    if (!unitCount || unitCount.count === 0) {
+      const insertProp = db.prepare(`
+        INSERT OR REPLACE INTO properties (id, name_en, name_ar, address_en, address_ar, city)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      for (const p of SEED_PROPERTIES) {
+        insertProp.run(p.id, p.name_en, p.name_ar, p.address_en, p.address_ar, p.city || 'Cairo');
+      }
+
+      const defaultRoomsJson = JSON.stringify([
+        "المطبخ",
+        "الحمام الرئيسي",
+        "الريسبشن / الصالة",
+        "غرفة النوم الرئيسية",
+        "البلكونة",
+      ]);
+      const insertUnit = db.prepare(`
+        INSERT OR REPLACE INTO units (id, property_id, unit_number, building_name, floor_number, resident_name, resident_phone, rooms)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const u of SEED_UNITS) {
+        insertUnit.run(
+          u.id,
+          u.property_id,
+          u.unit_number,
+          u.building_name,
+          u.floor_number,
+          u.resident_name,
+          u.resident_phone,
+          defaultRoomsJson
+        );
+      }
+    } else {
+      const insertProp = db.prepare(`
+        INSERT OR REPLACE INTO properties (id, name_en, name_ar, address_en, address_ar, city)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      insertProp.run('prop_default', 'Residential Property', 'العقار السكني', 'Main Building', 'المبنى الرئيسي', 'Cairo');
+    }
 
     // 2. Trades
     const insertTrade = db.prepare(`
@@ -2873,8 +2908,8 @@ export function seedDatabase(db: DatabaseSync, force = false): void {
     db.exec('PRAGMA foreign_keys = ON;');
   }
 
-  const existing = db.prepare('SELECT COUNT(*) as count FROM trades').get() as { count: number } | undefined;
-  if (existing && existing.count > 0 && !force) {
+  const existing = db.prepare("SELECT COUNT(*) as count FROM trades WHERE id != 'trade_other'").get() as { count: number } | undefined;
+  if (existing && existing.count >= 11 && !force) {
     return;
   }
 

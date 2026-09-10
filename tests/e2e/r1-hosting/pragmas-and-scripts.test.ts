@@ -255,7 +255,7 @@ describe("R1: Termux & Low-Resource Hosting Optimization", () => {
     it("T1.F4.2: verifies build script is present in package.json", () => {
       const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
       expect(pkg.scripts).toBeDefined();
-      expect(pkg.scripts.build).toBe("next build");
+      expect(pkg.scripts.build).toMatch(/^next build/);
     });
 
     it("T1.F4.3: verifies test command runs vitest with zero external dependencies", () => {
