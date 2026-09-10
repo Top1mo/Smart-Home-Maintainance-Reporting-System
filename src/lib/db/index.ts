@@ -104,6 +104,11 @@ CREATE TABLE IF NOT EXISTS tickets (
     trade_id TEXT NOT NULL REFERENCES trades(id),
     subcategory_id TEXT NOT NULL REFERENCES subcategories(id),
     symptom_id TEXT NOT NULL REFERENCES fault_symptoms(id),
+    custom_symptom_ar TEXT,
+    custom_symptom_en TEXT,
+    custom_subcategory_ar TEXT,
+    custom_subcategory_en TEXT,
+    custom_trade_name TEXT,
     room_location_en TEXT,
     room_location_ar TEXT,
     custom_description TEXT,
@@ -222,6 +227,31 @@ export function getDb(dbPath?: string): DatabaseSync {
   }
   try {
     db.exec("ALTER TABLE tickets ADD COLUMN building_name TEXT;");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.exec("ALTER TABLE tickets ADD COLUMN custom_symptom_ar TEXT;");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.exec("ALTER TABLE tickets ADD COLUMN custom_symptom_en TEXT;");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.exec("ALTER TABLE tickets ADD COLUMN custom_subcategory_ar TEXT;");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.exec("ALTER TABLE tickets ADD COLUMN custom_subcategory_en TEXT;");
+  } catch {
+    // Column already exists
+  }
+  try {
+    db.exec("ALTER TABLE tickets ADD COLUMN custom_trade_name TEXT;");
   } catch {
     // Column already exists
   }

@@ -38,12 +38,16 @@ export async function POST(
     db.prepare(`
       INSERT INTO tickets (
         id, reference_no, property_id, property_name, unit_id, unit_number,
-        trade_id, subcategory_id, symptom_id, room_location_en, room_location_ar,
+        trade_id, subcategory_id, symptom_id,
+        custom_symptom_ar, custom_symptom_en, custom_subcategory_ar, custom_subcategory_en, custom_trade_name,
+        room_location_en, room_location_ar,
         custom_description, description, severity, urgency, is_hazard, status,
         resident_name, resident_phone, photos, photo_urls, created_at, updated_at
       ) VALUES (
         ?, ?, ?, ?, ?, ?,
+        ?, ?, ?,
         ?, ?, ?, ?, ?,
+        ?, ?,
         ?, ?, ?, ?, ?, 'SUBMITTED',
         ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       )
@@ -57,6 +61,11 @@ export async function POST(
       ticket.trade_id,
       ticket.subcategory_id,
       ticket.symptom_id,
+      ticket.custom_symptom_ar || null,
+      ticket.custom_symptom_en || null,
+      ticket.custom_subcategory_ar || null,
+      ticket.custom_subcategory_en || null,
+      ticket.custom_trade_name || null,
       ticket.room_location_en,
       ticket.room_location_ar,
       appendedDesc,

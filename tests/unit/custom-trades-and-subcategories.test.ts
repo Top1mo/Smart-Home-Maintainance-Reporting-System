@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { getDb } from '@/lib/db';
 import { seedDatabase } from '@/lib/db/seed';
 import { FALLBACK_TRADES } from '@/lib/constants/trades-data';
-import { POST as postTickets } from '@/app/api/tickets/route';
+import { POST as postTickets, GET as getTickets } from '@/app/api/tickets/route';
 
 describe('Custom Trades & Subcategories Modularity & Plumbing Fix', () => {
   beforeEach(() => {
@@ -104,6 +104,70 @@ describe('Custom Trades & Subcategories Modularity & Plumbing Fix', () => {
       expect(data.ticket.subcategory_id).toBe('sub_other_custom');
       expect(data.ticket.symptom_id).toBe('sym_other_custom');
       expect(data.ticket.description).toContain('ضعف تدفق المياه من الفلتر');
+    });
+
+    it('preserves distinct symptom and subcategory names across multiple custom unlisted tickets without overwriting', async () => {
+      // 1. Create first custom ticket
+      const payload1 = {
+        property_name: 'Palm Hills Heights',
+        unit_number: '101',
+        trade_id: 'trade_plumbing',
+        subcategory_id: 'sub_other_custom',
+        symptom_id: 'sym_other_custom',
+        custom_subcategory_text: 'فلتر مياه مركزي',
+        custom_symptom_text: 'تسريب مستمر من خزان الفلتر',
+        resident_name: 'عميل أ',
+        resident_phone: '+20 100 000 0001',
+        description: '[نوع: فلتر مياه مركزي] [عطل مخصص: تسريب مستمر من خزان الفلتر] يرجى الفحص',
+      };
+      const res1 = await postTickets(new NextRequest('http://localhost:3000/api/tickets', {
+        method: 'POST',
+        body: JSON.stringify(payload1),
+      }));
+      expect(res1.status).toBe(201);
+      const data1 = await res1.json();
+      const ticket1Id = data1.ticket.id;
+
+      // 2. Create second custom ticket with completely different custom symptom
+      const payload2 = {
+        property_name: 'Palm Hills Heights',
+        unit_number: '102',
+        trade_id: 'trade_carpentry',
+        subcategory_id: 'sub_other_custom',
+        symptom_id: 'sym_other_custom',
+        custom_subcategory_text: 'كالون إلكتروني ذكي',
+        custom_symptom_text: 'الكالون معلق ولا يقبل بصمة الإصبع',
+        resident_name: 'عميل ب',
+        resident_phone: '+20 100 000 0002',
+        description: '[نوع: كالون إلكتروني ذكي] [عطل مخصص: الكالون معلق ولا يقبل بصمة الإصبع] طارئ',
+      };
+      const res2 = await postTickets(new NextRequest('http://localhost:3000/api/tickets', {
+        method: 'POST',
+        body: JSON.stringify(payload2),
+      }));
+      expect(res2.status).toBe(201);
+      const data2 = await res2.json();
+      const ticket2Id = data2.ticket.id;
+
+      // 3. Fetch all tickets via GET /api/tickets
+      const getReq = new NextRequest('http://localhost:3000/api/tickets');
+      const getRes = await getTickets(getReq);
+      expect(getRes.status).toBe(200);
+      const allData = await getRes.json();
+
+      const fetchedTicket1 = allData.tickets.find((t: any) => t.id === ticket1Id);
+      const fetchedTicket2 = allData.tickets.find((t: any) => t.id === ticket2Id);
+
+      expect(fetchedTicket1).toBeDefined();
+      expect(fetchedTicket2).toBeDefined();
+
+      // Ticket 1 must RETAIN its own custom symptom and subcategory!
+      expect(fetchedTicket1.symptom_ar).toBe('تسريب مستمر من خزان الفلتر');
+      expect(fetchedTicket1.subcategory_name_ar).toBe('فلتر مياه مركزي');
+
+      // Ticket 2 must have its own custom symptom and subcategory!
+      expect(fetchedTicket2.symptom_ar).toBe('الكالون معلق ولا يقبل بصمة الإصبع');
+      expect(fetchedTicket2.subcategory_name_ar).toBe('كالون إلكتروني ذكي');
     });
   });
 });

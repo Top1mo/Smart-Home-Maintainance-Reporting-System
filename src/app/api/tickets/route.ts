@@ -81,19 +81,19 @@ export async function GET(request: NextRequest) {
         t.*,
         COALESCE(t.building_name, u.building_name, 'المبنى الرئيسي') AS building_name,
         u.floor_number AS unit_floor_number,
-        tr.name_en AS trade_name_en,
-        tr.name_ar AS trade_name_ar,
-        tr.name_ar AS trade_ar,
-        tr.name_en AS trade_en,
+        COALESCE(t.custom_trade_name, tr.name_en) AS trade_name_en,
+        COALESCE(t.custom_trade_name, tr.name_ar) AS trade_name_ar,
+        COALESCE(t.custom_trade_name, tr.name_ar) AS trade_ar,
+        COALESCE(t.custom_trade_name, tr.name_en) AS trade_en,
         tr.slug AS trade_slug,
         tr.icon AS trade_icon,
-        sc.name_en AS subcategory_name_en,
-        sc.name_ar AS subcategory_name_ar,
-        sc.name_ar AS subcategory_ar,
-        sc.name_en AS subcategory_en,
+        COALESCE(t.custom_subcategory_en, sc.name_en) AS subcategory_name_en,
+        COALESCE(t.custom_subcategory_ar, sc.name_ar) AS subcategory_name_ar,
+        COALESCE(t.custom_subcategory_ar, sc.name_ar) AS subcategory_ar,
+        COALESCE(t.custom_subcategory_en, sc.name_en) AS subcategory_en,
         sc.is_elv AS subcategory_is_elv,
-        fs.symptom_en,
-        fs.symptom_ar,
+        COALESCE(t.custom_symptom_en, fs.symptom_en) AS symptom_en,
+        COALESCE(t.custom_symptom_ar, fs.symptom_ar) AS symptom_ar,
         fs.hazard_type,
         fs.hazard_instruction_en,
         fs.hazard_instruction_ar,
@@ -114,13 +114,55 @@ export async function GET(request: NextRequest) {
 
     const rows: any[] = db.prepare(selectSql).all(...params, limit, offset);
 
-    const tickets = rows.map((r) => ({
-      ...r,
-      is_hazard: Boolean(r.is_hazard),
-      parts_needed: Boolean(r.parts_needed),
-      photos: safeParsePhotos(r.photos || r.photo_urls),
-      photo_urls: safeParsePhotos(r.photo_urls || r.photos),
-    }));
+    const tickets = rows.map((r) => {
+      let symptom_ar = r.symptom_ar;
+      let symptom_en = r.symptom_en;
+      let subcategory_name_ar = r.subcategory_name_ar;
+      let subcategory_name_en = r.subcategory_name_en;
+      let trade_ar = r.trade_ar;
+      let trade_en = r.trade_en;
+
+      const desc = r.custom_description || r.description || '';
+      if (!r.custom_symptom_ar && (r.symptom_id === 'sym_other_custom' || r.symptom_id === 'sym_other_general')) {
+        const symMatch = desc.match(/\[(?:عطل مخصص|custom fault):\s*([^\]]+)\]/i);
+        if (symMatch && symMatch[1]) {
+          symptom_ar = symMatch[1].trim();
+          symptom_en = symMatch[1].trim();
+        }
+      }
+      if (!r.custom_subcategory_ar && (r.subcategory_id === 'sub_other_custom' || r.subcategory_id === 'sub_other_general')) {
+        const subMatch = desc.match(/\[(?:نوع|type):\s*([^\]]+)\]/i);
+        if (subMatch && subMatch[1]) {
+          subcategory_name_ar = subMatch[1].trim();
+          subcategory_name_en = subMatch[1].trim();
+        }
+      }
+      if (!r.custom_trade_name && r.trade_id === 'trade_other') {
+        const tradeMatch = desc.match(/\[(?:تخصص|trade):\s*([^\]]+)\]/i);
+        if (tradeMatch && tradeMatch[1]) {
+          trade_ar = tradeMatch[1].trim();
+          trade_en = tradeMatch[1].trim();
+        }
+      }
+
+      return {
+        ...r,
+        symptom_ar,
+        symptom_en,
+        subcategory_name_ar,
+        subcategory_name_en,
+        subcategory_ar: subcategory_name_ar,
+        subcategory_en: subcategory_name_en,
+        trade_ar,
+        trade_en,
+        trade_name_ar: trade_ar,
+        trade_name_en: trade_en,
+        is_hazard: Boolean(r.is_hazard),
+        parts_needed: Boolean(r.parts_needed),
+        photos: safeParsePhotos(r.photos || r.photo_urls),
+        photo_urls: safeParsePhotos(r.photo_urls || r.photos),
+      };
+    });
 
     return NextResponse.json({
       tickets,
@@ -204,6 +246,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Extract custom texts for per-ticket persistence
+    const customSymptomVal = (custom_symptom_text && custom_symptom_text.trim())
+      || (finalDescription && (finalDescription.match(/\[(?:عطل مخصص|custom fault):\s*([^\]]+)\]/i)?.[1]?.trim()))
+      || null;
+
+    const customSubcatVal = (custom_subcategory_text && custom_subcategory_text.trim())
+      || (finalDescription && (finalDescription.match(/\[(?:نوع|type):\s*([^\]]+)\]/i)?.[1]?.trim()))
+      || null;
+
+    const customTradeVal = (custom_trade_text && custom_trade_text.trim())
+      || (finalDescription && (finalDescription.match(/\[(?:تخصص|trade):\s*([^\]]+)\]/i)?.[1]?.trim()))
+      || null;
+
     // Dynamic support for custom "Other" trade IDs (e.g. trade_other)
     const isCustomTrade = trade_id === 'trade_other' || String(trade_id).startsWith('trade_other');
     if (isCustomTrade) {
@@ -222,11 +277,10 @@ export async function POST(request: NextRequest) {
     // Dynamic support for custom "Other" subcategory IDs (e.g. sub_other_custom)
     const isCustomSubcat = subcategory_id === 'sub_other_custom' || (String(subcategory_id).startsWith('sub_other') && subcategory_id !== 'sub_other_general');
     if (isCustomSubcat) {
-      const customSubcatLabel = custom_subcategory_text || finalDescription || 'نوع آخر غير مدرج';
+      const customSubcatLabel = customSubcatVal || 'نوع آخر غير مدرج';
       db.prepare(`
-        INSERT INTO subcategories (id, trade_id, slug, name_en, name_ar, is_elv)
+        INSERT OR IGNORE INTO subcategories (id, trade_id, slug, name_en, name_ar, is_elv)
         VALUES (?, ?, 'OTHER_CUSTOM', ?, ?, 0)
-        ON CONFLICT(id) DO UPDATE SET trade_id=excluded.trade_id, name_en=excluded.name_en, name_ar=excluded.name_ar
       `).run(subcategory_id, trade_id, customSubcatLabel, customSubcatLabel);
     }
 
@@ -235,7 +289,7 @@ export async function POST(request: NextRequest) {
     if (!subcatRow) {
       return NextResponse.json({ error: `Subcategory not found: ${subcategory_id}` }, { status: 400 });
     }
-    if (subcatRow.trade_id !== trade_id) {
+    if (!isCustomSubcat && subcatRow.trade_id !== trade_id) {
       return NextResponse.json(
         { error: `Subcategory ${subcategory_id} does not belong to trade ${trade_id}` },
         { status: 400 }
@@ -245,13 +299,12 @@ export async function POST(request: NextRequest) {
     // Dynamic support for custom "Other" symptom IDs (e.g. sym_other_custom)
     const isCustomSymptom = symptom_id === 'sym_other_custom' || (String(symptom_id).startsWith('sym_other') && symptom_id !== 'sym_other_general');
     if (isCustomSymptom) {
-      const customLabel = custom_symptom_text || finalDescription || 'عطل آخر غير مدرج';
+      const customLabel = customSymptomVal || 'عطل آخر غير مدرج';
       db.prepare(`
-        INSERT INTO fault_symptoms (
+        INSERT OR IGNORE INTO fault_symptoms (
           id, subcategory_id, symptom_en, symptom_ar, name_en, name_ar,
           default_severity, default_urgency, is_hazard
         ) VALUES (?, ?, ?, ?, ?, ?, 'MEDIUM', 'NORMAL', 0)
-        ON CONFLICT(id) DO UPDATE SET subcategory_id=excluded.subcategory_id, symptom_en=excluded.symptom_en, symptom_ar=excluded.symptom_ar, name_en=excluded.name_en, name_ar=excluded.name_ar
       `).run(symptom_id, subcategory_id, customLabel, customLabel, customLabel, customLabel);
     }
 
@@ -260,7 +313,7 @@ export async function POST(request: NextRequest) {
     if (!symptom) {
       return NextResponse.json({ error: `Invalid symptom_id provided: ${symptom_id}` }, { status: 400 });
     }
-    if (symptom.subcategory_id !== subcategory_id) {
+    if (!isCustomSymptom && symptom.subcategory_id !== subcategory_id) {
       return NextResponse.json(
         { error: `Symptom ${symptom_id} does not belong to subcategory ${subcategory_id}` },
         { status: 400 }
@@ -318,12 +371,16 @@ export async function POST(request: NextRequest) {
       db.prepare(`
         INSERT INTO tickets (
           id, reference_no, property_id, property_name, unit_id, unit_number, building_name,
-          trade_id, subcategory_id, symptom_id, room_location_en, room_location_ar,
+          trade_id, subcategory_id, symptom_id,
+          custom_symptom_ar, custom_symptom_en, custom_subcategory_ar, custom_subcategory_en, custom_trade_name,
+          room_location_en, room_location_ar,
           custom_description, description, severity, urgency, is_hazard, status,
           resident_name, resident_phone, photos, photo_urls, created_at, updated_at
         ) VALUES (
           ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?,
           ?, ?, ?, ?, ?,
+          ?, ?,
           ?, ?, ?, ?, ?, 'SUBMITTED',
           ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
@@ -338,6 +395,11 @@ export async function POST(request: NextRequest) {
         trade_id,
         subcategory_id,
         symptom_id,
+        customSymptomVal,
+        customSymptomVal,
+        customSubcatVal,
+        customSubcatVal,
+        customTradeVal,
         room_location_en || null,
         room_location_ar || null,
         finalDescription,
@@ -373,19 +435,19 @@ export async function POST(request: NextRequest) {
         t.*,
         COALESCE(t.building_name, u.building_name, 'المبنى الرئيسي') AS building_name,
         u.floor_number AS unit_floor_number,
-        tr.name_en AS trade_name_en,
-        tr.name_ar AS trade_name_ar,
-        tr.name_ar AS trade_ar,
-        tr.name_en AS trade_en,
+        COALESCE(t.custom_trade_name, tr.name_en) AS trade_name_en,
+        COALESCE(t.custom_trade_name, tr.name_ar) AS trade_name_ar,
+        COALESCE(t.custom_trade_name, tr.name_ar) AS trade_ar,
+        COALESCE(t.custom_trade_name, tr.name_en) AS trade_en,
         tr.slug AS trade_slug,
         tr.icon AS trade_icon,
-        sc.name_en AS subcategory_name_en,
-        sc.name_ar AS subcategory_name_ar,
-        sc.name_ar AS subcategory_ar,
-        sc.name_en AS subcategory_en,
+        COALESCE(t.custom_subcategory_en, sc.name_en) AS subcategory_name_en,
+        COALESCE(t.custom_subcategory_ar, sc.name_ar) AS subcategory_name_ar,
+        COALESCE(t.custom_subcategory_ar, sc.name_ar) AS subcategory_ar,
+        COALESCE(t.custom_subcategory_en, sc.name_en) AS subcategory_en,
         sc.is_elv AS subcategory_is_elv,
-        fs.symptom_en,
-        fs.symptom_ar,
+        COALESCE(t.custom_symptom_en, fs.symptom_en) AS symptom_en,
+        COALESCE(t.custom_symptom_ar, fs.symptom_ar) AS symptom_ar,
         fs.hazard_type,
         fs.hazard_instruction_en,
         fs.hazard_instruction_ar,
